@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 
+use Carp;
 use OpenGL qw/ :all /;
 use Image::BMP;
 use Math::Trig;
@@ -786,9 +787,41 @@ sub ourOrientMe {
 ## Map Stuff ###################################################################
 ################################################################################
 
+# Loads the .gz file given as the first parameter and stores it in the array ###
+# for which the reference is given in the second parameter. ####################
+sub ourLoadRawGZmap {
+    my ($map_file,$raw_map) = @_;
+    my $i = 0;
+    my $temp_line;
+    my $result;
+    
+    use Compress::Zlib;
+    
+    print "reading gz-map file...   ";
+    
+    my $gz = gzopen($map_file, "rb") or croak "Cannot open $map_file: $gzerrno\n";
+    while ( $result = $gz->gzreadline($temp_line) ) {
+        last if $result < 1;
+        $$raw_map[$i] = $temp_line;
+        $i++;
+    }
+    $gz->gzclose();
+    
+    croak "Error while unpacking: '$gzerrno'\n" if ( $result == -1 );    
+    
+    print "done.\n";
+    
+    return 1;    
+}
 
 sub ourLoadMapData {
     my $map_directory = '.';
+    my $map_file = 'full_Reignwall.txt.gz';
+    my @raw_map;
+    
+    ourLoadRawGZmap( $map_file, \@raw_map );
+    
+    print "$#raw_map\n";
 
     print "reading map files...   ";
 
