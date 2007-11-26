@@ -148,8 +148,8 @@ sub print_files {
     $map_name =~ /.*?(\w+).*?/;
     $map_name = $1;
     
-    my $page = "$map_name|$xcount|$ycount|$zcount\n";
-    my $page2 = "$map_name|$xcount|$ycount|$zcount\n";
+    my $page = "$map_name|$xcount|$ycount\n";
+    my $page2 = "$map_name|$xcount|$ycount\n";
     
     for my $z ( 0..$zcount-1 ) {
         my $map1 = "-" . $z . "-\n";
