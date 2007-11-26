@@ -169,7 +169,7 @@ sub print_files {
                     $line2 .= "-1|";
                 }
             }
-            $line2 =~ s/|$//;
+            $line2 =~ s/\|$//;
             $map1 .= $line1."\n";
             $map2 .= $line2."\n";
         }
