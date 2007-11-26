@@ -218,7 +218,7 @@ sub cbRenderScene {
     ourDrawMapGround();
 
     glEnd();    # All polygons have been drawn.
-    
+
     glCallList($displaylist{MY_CIRCLE_LIST});
 
     glLoadIdentity();    # Move back to the origin (for the text, below).
@@ -536,19 +536,19 @@ sub ourInit {
     glLightfv_p(GL_LIGHT1, GL_AMBIENT,  @Light_Ambient);
     glLightfv_p(GL_LIGHT1, GL_DIFFUSE,  @Light_Diffuse);
     glEnable (GL_LIGHT1);
-    
+
     glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);    # A handy trick -- have surface material mirror the color.
     glEnable(GL_COLOR_MATERIAL);
-    
+
     $displaylist{MY_CIRCLE_LIST} = 1;
     glNewList($displaylist{MY_CIRCLE_LIST}, GL_COMPILE);
     glBegin(GL_POLYGON);
     for my $j (0..99){
-    for my $i (0..99){
-        my $cos=cos($i*2*PI/100.0);
-        my $sin=sin($i*2*PI/100.0);
-        glVertex2f($cos+$j,$sin+$j);
-    }
+        for my $i (0..99){
+            my $cos=cos($i*2*PI/100.0);
+            my $sin=sin($i*2*PI/100.0);
+            glVertex2f($cos+$j,$sin+$j);
+        }
     }
     glEnd();
     glEndList();
@@ -794,11 +794,11 @@ sub ourLoadRawGZmap {
     my $i = 0;
     my $temp_line;
     my $result;
-    
+
     use Compress::Zlib;
-    
+
     print "reading gz-map file...   ";
-    
+
     my $gz = gzopen($map_file, "rb") or croak "Cannot open $map_file: $gzerrno\n";
     while ( $result = $gz->gzreadline($temp_line) ) {
         last if $result < 1;
@@ -806,8 +806,42 @@ sub ourLoadRawGZmap {
         $i++;
     }
     $gz->gzclose();
+
+    croak "Error while unpacking: '$gzerrno'\n" if ( $result == -1 );
+
+    print "done.\n";
+
+    return 1;
+}
+
+# Converts the text from the raw map array into a hash of the whole map. #######
+sub ourCreateMapStruc {
+    my ( $raw_map, $map_struc ) = @_;
+
+    print "converting raw map data...   ";
+
+    my $base_data = shift ( @$raw_map );
+    ( $$map_struc{name}, $$map_struc{xsize}, $$map_struc{ysize}, $$map_struc{zsize} ) = split  /|/, $base_data;
+
+    croak "Map name missing." unless $$map_struc{name};
+    croak "Map xsize missing." unless $$map_struc{xsize};
+    croak "Map ysize missing." unless $$map_struc{ysize};
+    croak "Map zsize missing." unless $$map_struc{zsize};
     
-    croak "Error while unpacking: '$gzerrno'\n" if ( $result == -1 );    
+    my ($x,$y,$z);
+    for my $line ( @$raw_map ) {
+        if ( $line =~ /^-[0-9]+?-$/ ) {
+            $z = $1;
+            $y = 0;
+        }
+        
+        my @row = split /|/, $line;
+        for my $tile ( @row ) {
+            
+        }
+        $y++;
+    }
+ 
     
     print "done.\n";
     
@@ -818,10 +852,11 @@ sub ourLoadMapData {
     my $map_directory = '.';
     my $map_file = 'full_Reignwall.txt.gz';
     my @raw_map;
-    
+    my %map_struc;
+
     ourLoadRawGZmap( $map_file, \@raw_map );
-    
-    print "$#raw_map\n";
+
+    ourCreateMapStruc( \@raw_map, \%map_struc );
 
     print "reading map files...   ";
 
