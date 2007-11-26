@@ -821,27 +821,36 @@ sub ourCreateMapStruc {
     print "converting raw map data...   ";
 
     my $base_data = shift ( @$raw_map );
-    ( $$map_struc{name}, $$map_struc{xsize}, $$map_struc{ysize}, $$map_struc{zsize} ) = split  /|/, $base_data;
+    ( $$map_struc{name}, $$map_struc{xsize}, $$map_struc{ysize} ) = split  /\|/, $base_data;
 
     croak "Map name missing." unless $$map_struc{name};
     croak "Map xsize missing." unless $$map_struc{xsize};
     croak "Map ysize missing." unless $$map_struc{ysize};
-    croak "Map zsize missing." unless $$map_struc{zsize};
     
     my ($x,$y,$z);
     for my $line ( @$raw_map ) {
-        if ( $line =~ /^-[0-9]+?-$/ ) {
+        if ( $line =~ /^-([0-9]+?)-$/ ) {
             $z = $1;
+            $$map_struc{zstart} = $z unless $$map_struc{zstart};
             $y = 0;
+            next;
         }
         
-        my @row = split /|/, $line;
+        $x = 0;
+        my @row = split /\|/, $line;
         for my $tile ( @row ) {
-            
+            if ( $tile eq "-1" ) {
+                ( $$map_struc{types}[$x][$y][$z], $$map_struc{desigs}[$x][$y][$z], $$map_struc{occups}[$x][$y][$z] ) = ( 0, 0, 0 );
+            }
+            else {
+                ( $$map_struc{types}[$x][$y][$z], $$map_struc{desigs}[$x][$y][$z], $$map_struc{occups}[$x][$y][$z] ) = split ( /\|/, $tile );
+            }
+            $x++;
         }
         $y++;
     }
  
+    $$map_struc{zend} = $z;
     
     print "done.\n";
     
