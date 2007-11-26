@@ -186,11 +186,11 @@ sub print_files {
     $page =~ s/\n$//;
     $page2 =~ s/\n$//;
     
-    my $gz = gzopen("lite_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
-    $gz->gzwrite($page)  or croak( "horribly: ".$gzerrno );
-    $gz->gzclose ;
+    open my $DAT, ">", "lite_$map_name.txt" or croak( "horribly: $!" );
+    print $DAT $page;
+    close $DAT;
     
-    $gz = gzopen("full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
+    my $gz = gzopen("full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
     $gz->gzwrite($page2)  or croak( "horribly: ".$gzerrno );
     $gz->gzclose ;
 }
