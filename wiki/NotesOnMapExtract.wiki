@@ -12,10 +12,10 @@ It will output the map data in two fashions:
 
 Both files are formatted in such a way to represent the data exactly as seen in DF, i.e. top left tile in game will be top left in the map file.
 
-* The first line contains the name of the map that was entered while running the program, the x-size, the y-size and the z-size; seperated by |s.
-* Each z-level is one block, started by one line that only contains the index of the current z-level, enclosed in -s.
-* Each y-line has one line in the block, containing the tiles, seperated by |s.
-* Each tile is either represented by a "-1", meaning it is unallocated; or a triplet numbers, seperated by :s.
-* The numbers mean, in sequence: "type:designation flags:occupancy flags".
-* The type ids are straight numbers, the meaning of which is still being decyphered, with results available [http://www.dwarffortresswiki.net/index.php/User:Mithaldu/Tile_types_in_DF_memory here] and [http://spreadsheets.google.com/ccc?key=ppHCNfNceTrmxbXWDzf9aXg&hl=en here].
-* The dependancy flags and occupancy flags are largely unknown, but some data on them is available in the [http://www.dwarffortresswiki.net/index.php/User:Rick/Memory_research#Data_Block DFWiki].
+ * The first line contains the name of the map that was entered while running the program, the x-size, the y-size and the z-size; seperated by |s.
+ * Each z-level is one block, started by one line that only contains the index of the current z-level, enclosed in -s.
+ * Each y-line has one line in the block, containing the tiles, seperated by |s.
+ * Each tile is either represented by a "-1", meaning it is unallocated; or a triplet numbers, seperated by :s.
+ * The numbers mean, in sequence: "type:designation flags:occupancy flags".
+ * The type ids are straight numbers, the meaning of which is still being decyphered, with results available [http://www.dwarffortresswiki.net/index.php/User:Mithaldu/Tile_types_in_DF_memory here] and [http://spreadsheets.google.com/ccc?key=ppHCNfNceTrmxbXWDzf9aXg&hl=en here].
+ * The dependancy flags and occupancy flags are largely unknown, but some data on them is available in the [http://www.dwarffortresswiki.net/index.php/User:Rick/Memory_research#Data_Block DFWiki].
