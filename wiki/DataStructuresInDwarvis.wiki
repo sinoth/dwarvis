@@ -1,0 +1,13 @@
+#summary Reference of the data structures used in Dwarvis.
+
+= map_struc =
+{{{
+ * {name}
+ * {xsize}
+ * {ysize}
+ * {zstart}
+ * {zend}
+ * {types} -> [x][y][z] -> value
+ * {desigs} -> [x][y][z] -> value
+ * {occups} -> [x][y][z] -> value
+}}}
