@@ -152,8 +152,8 @@ sub print_files {
     my $page2 = "$map_name|$xcount|$ycount\n";
     
     for my $z ( 0..$zcount-1 ) {
-        my $map1 = "-" . $z . "-\n";
-        my $map2 = "-" . $z . "-\n";
+        my $map1 = sprintf ("-%03d-\n", $z);
+        my $map2 = sprintf ("-%03d-\n", $z);
         my $allocated;
         for my $y ( 0..($ycount*16)-1 ) {
             my $line1;
