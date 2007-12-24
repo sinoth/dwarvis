@@ -65,6 +65,14 @@ my @offsets = (
         y_count => 0x01462584,
         z_count => 0x01462588
     },
+    {
+        version => "v0.27.169.33g",
+        PE => 0x476CA6CE,
+        map_loc => 0x01469680,
+        x_count => 0x01469698,
+        y_count => 0x0146969C,
+        z_count => 0x014696A0
+    },
 );
 
 my $tile_type_offset        = 0x005E;
@@ -174,6 +182,8 @@ sub process_block {
         for my $x ( 0..15 ) {
 
             my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
+
+		next if ( ( $designation_data[$tile_index] & 512 ) == 512 );	# skip tile if it is hidden
 
             my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
             my $real_y = ($by*16)+$y;
