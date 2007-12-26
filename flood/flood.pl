@@ -18,36 +18,15 @@ my $pe_timestamp_offset = 0x004000F8;
 
 my @offsets = (
     {
-        version => "v0.27.169.33a",
-        PE => 0x4729DA32,
-        map_loc => 0x01458568,
-        x_count => 0x01458580,
-        y_count => 0x01458584,
-        z_count => 0x01458588
-    },
-    {
-        version => "v0.27.169.33b",
-        PE => 0x473E7E49,
-        map_loc => 0x01459568,
-        x_count => 0x01459580,
-        y_count => 0x01459584,
-        z_count => 0x01459588
-    },
-    {
-        version => "v0.27.169.33c",
-        PE => 0x47480E76,
-        map_loc => 0x0145F560,
-        x_count => 0x0145F578,
-        y_count => 0x0145F57C,
-        z_count => 0x0145F580
-    },
-    {
         version => "v0.27.169.33d",
         PE => 0x475099AA,
         map_loc => 0x01460560,
         x_count => 0x01460578,
         y_count => 0x0146057C,
-        z_count => 0x01460580
+        z_count => 0x01460580,
+        mouse_x => 0x008FD288,
+        mouse_y => 0x008FD28C,
+        mouse_z => 0x008FD290
     },
     {
         version => "v0.27.169.33e",
@@ -55,7 +34,10 @@ my @offsets = (
         map_loc => 0x01461560,
         x_count => 0x01461578,
         y_count => 0x0146157C,
-        z_count => 0x01461580
+        z_count => 0x01461580,
+        mouse_x => 0x008FD288,
+        mouse_y => 0x008FD28C,
+        mouse_z => 0x008FD290
     },
     {
         version => "v0.27.169.33f",
@@ -63,7 +45,10 @@ my @offsets = (
         map_loc => 0x01462568,
         x_count => 0x01462580,
         y_count => 0x01462584,
-        z_count => 0x01462588
+        z_count => 0x01462588,
+        mouse_x => 0x008FD288,
+        mouse_y => 0x008FD28C,
+        mouse_z => 0x008FD290
     },
     {
         version => "v0.27.169.33g",
@@ -71,7 +56,10 @@ my @offsets = (
         map_loc => 0x01469680,
         x_count => 0x01469698,
         y_count => 0x0146969C,
-        z_count => 0x014696A0
+        z_count => 0x014696A0,
+        mouse_x => 0x00906288,
+        mouse_y => 0x0090628C,
+        mouse_z => 0x00906290
     },
 );
 
@@ -99,7 +87,7 @@ croak "Couldn't lower process priority, this is really odd and shouldn't happen,
 
 ### actually read stuff from memory ############################################
 ################################################################################
-$proc = Win32::Process::Memory->new({ pid  => $dwarf_pid, access => 'read/query' });   # open process with read access
+$proc = Win32::Process::Memory->new({ pid  => $dwarf_pid, access => 'all' });   # open process with read access
 croak "Couldn't open memory access to Dwarf Fortress, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $proc );
 
 
@@ -109,20 +97,20 @@ $pe_timestamp = $proc->get_u32( $pe_timestamp_offset );
 for my $i ( 0..$#offsets ) {
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
         print "We seem to be using: DF $offsets[$i]{version}\nIf this is correct, press enter. If not, please CTRL+C now and contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n";
-        $input = <STDIN>;
         $ver = $i;
         last;
     }
 }
-
-print "Processing map data.\n";
-
-loadmap();
+    
+while ( $input = <STDIN> ) {
+    chomp($input);
+    last if $input eq 'q';
+    loadmap();
+}
 
 undef $proc;                                                # close process
 
-print "Press enter to close...";
-$input = <STDIN>;
+
 
 ################################################################################
 
@@ -131,124 +119,91 @@ sub loadmap {
 
     my $map_base;                                   # offset of the address where the map blocks start
     my ($xcount, $ycount, $zcount);                 # dimensions of the map data we're dealing with
+    my ($xmouse, $ymouse, $zmouse);                 # cursor coordinates
+    my ($xcell, $ycell, $zcell);                    # cursor cell coordinates
+    my ($xtile, $ytile, $ztile);                    # cursor tile coordinates inside the cell adressed above
     my (@xoffsets,@yoffsets,@zoffsets);             # arrays to store the offsets of the place where other addresses are stored
-    @full_map_data=[];                              # array to hold the full extracted map data
     
-    $map_base = $proc->get_u32( $offsets[$ver]{map_loc} );        # checking whether the game has a map already
+    $map_base = $proc->get_u32( $offsets[$ver]{map_loc} );       # checking whether the game has a map already
     croak "Map data is not yet available, make sure you have a game loaded." unless ( $map_base );
 
     $xcount = $proc->get_u32( $offsets[$ver]{x_count} );         # find out how much data we're dealing with
     $ycount = $proc->get_u32( $offsets[$ver]{y_count} );
     $zcount = $proc->get_u32( $offsets[$ver]{z_count} );
-                                                    # get the offsets of the address storages for each x-slice and cycle through
+    
+    $xmouse = $proc->get_u32( $offsets[$ver]{mouse_x} );         # get mouse data
+    $ymouse = $proc->get_u32( $offsets[$ver]{mouse_y} );
+    $ztile = $proc->get_u32( $offsets[$ver]{mouse_z} );
+    
+    ($xcell, $ycell) = ( int($xmouse/16), int($ymouse/16) );
+    
+    ($xtile, $ytile) = ( $xmouse%16, $ymouse%16 );
+    
+    
+    print "Tile at [ " . (($xcell*16)+$xtile) . "x " . (($ycell*16)+$ytile) . "y $ztile"."z ] :";
+    
+                                                    # get the offsets of the address storages for each x-slice and extract the tile x address
     @xoffsets = $proc->get_packs("L", 4, $map_base, $xcount);
-    for my $bx ( 0..$#xoffsets ) {
-                                                        # get the offsets of the address storages for each y-column in this x-slice and cycle through
-        @yoffsets = $proc->get_packs("L", 4, $xoffsets[$bx], $ycount);
-        for my $by ( 0..$#yoffsets ) {
-                                                            # get the offsets of each z-block in this y-column and cycle through
-            @zoffsets = $proc->get_packs("L", 4, $yoffsets[$by], $zcount);
-            for my $bz ( 0..$#zoffsets ) {
+    
+                                                    # get the offsets of the address storages for each y-column in this x-slice and extract the tile y address
+    @yoffsets = $proc->get_packs("L", 4, $xoffsets[$xcell], $ycount);
 
-                next if ( $zoffsets[$bz] == 0 );                # go to the next block if this one is not allocated
+                                                    # get the offsets of each z-block in this y-column and cycle through
+    @zoffsets = $proc->get_packs("L", 4, $yoffsets[$ycell], $zcount);
+    
+    croak "Tile not allocated, designate target area, even if mid-air." if ( $zoffsets[$ztile] == 0 ); # DANGER DANGER WILL ROBINSON
 
-                process_block(                                  # process the data in one block
-                    $zoffsets[$bz],                             # offset of the current block
-                    $bx,                                        # x location of the current block
-                    $by,                                        # y location of the current block
-                    $bz );                                      # z location of the current block
+    process_block(                                  # process the data in one block
+        $zoffsets[$ztile],                          # offset of the current cell
+        $xtile,                                     # x location of the current tile in the cell
+        $ytile );                                   # y location of the current tile in the cell
 
-            }
-        }
-    }
-    print "Done reading DF memory, printing to files.\n";
-
-    print_files( $xcount, $ycount, $zcount );
-
-    print "Files printed, shutting down.\n";
 }
 
 sub process_block {
-    my ($block_offset, $bx, $by, $bz) = @_;
+    my ($block_offset, $bx, $by) = @_;
+    
+    my $tile_index = $by+($bx*16);                  # this calculates the tile index we are currently at, from the x and y coords in this block
 
-    my @type_data        = $proc->get_packs(        # extract type/designation/occupation arrays for this block
-        "S", 2,                                     # format and size in bytes of each data unit
-        $block_offset+$tile_type_offset,            # starting offset
-        256);                                       # number of units
-    my @designation_data = $proc->get_packs("L", 4, $block_offset+$tile_designation_offset, 256);
-    my @ocupation_data   = $proc->get_packs("L", 4, $block_offset+$tile_occupancy_offset,   256);
-
-    for my $y ( 0..15 ) {                           # cycle through 16 x and 16 y values, which generate a total of 256 tile indexes
-        for my $x ( 0..15 ) {
-
-            my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
-
-		next if ( ( $designation_data[$tile_index] & 512 ) == 512 );	# skip tile if it is hidden
-
-            my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
-            my $real_y = ($by*16)+$y;
-
-            $full_map_data[$real_x][$real_y][$bz] =     # store in the array that holds the full map data :
-                $type_data[$tile_index] . ":" .         # the type data of the tile with the current index
-                $designation_data[$tile_index] . ":" .  # the designation data of the tile with the current index
-                $ocupation_data[$tile_index];           # the occupation data of the tile with the current index
-        }
+    my $type =          $proc->get_u16( $block_offset+$tile_type_offset+(2*$tile_index) );   # extract type/designation/occupation for this block
+    my $designation =   $proc->get_u32( $block_offset+$tile_designation_offset+(4*$tile_index) );
+    my $ocupation =     $proc->get_u32( $block_offset+$tile_occupancy_offset+(4*$tile_index) );
+    
+    print " has " . ($designation & 7) . " units of ";    
+    if ( ( $designation & 67108864 ) == 67108864 ) {
+        if ( (( $designation & 2097152 ) == 2097152) and (( $designation & 536870912 ) == 536870912) ) { print "lava."; }
+        else { print "water."; }
     }
-}
-
-sub print_files {
-    my ($xcount, $ycount, $zcount) = @_;
+    else { print "no liquid."; }
     
-    print "Please enter the name of your fortress (1 word, alphanumeric + _): ";
-    my $map_name = <STDIN>;
-    $map_name =~ /.*?(\w+).*?/;
-    $map_name = $1;
+    $designation = $designation | 67108864;
+    $designation = $designation | 7;
     
-    my $page = "$map_name|$xcount|$ycount\n";
-    my $page2 = "$map_name|$xcount|$ycount\n";
-    
-    for my $z ( 0..$zcount-1 ) {
-        my $map1 = sprintf ("-%03d-\n", $z);
-        my $map2 = sprintf ("-%03d-\n", $z);
-        my $allocated;
-        for my $y ( 0..($ycount*16)-1 ) {
-            my $line1;
-            my $line2;
-            for my $x ( 0..($xcount*16)-1 ) {
-                if ($full_map_data[$x][$y][$z]) {
-                    $line1 .= sprintf ( "%4d ", split (/:/, $full_map_data[$x][$y][$z], 2) );
-                    $line2 .= $full_map_data[$x][$y][$z]."|";
-                    $allocated = 1;
-                }
-                else {
-                    $line1 .= "  -1 ";
-                    $line2 .= "-1|";
-                }
-            }
-            $line2 =~ s/\|$//;
-            $map1 .= $line1."\n";
-            $map2 .= $line2."\n";
-        }
-        
-        if ($allocated) {
-            $map1 =~ s/\n$//;
-            $map2 =~ s/\n$//;
-            $page .= $map1."\n";
-            $page2 .= $map2."\n";
-        }
-        print " ". $z+1 ." / $zcount \n";
+    print "\nThis would fill it with " . ($designation & 7) . " units of ";    
+    if ( ( $designation & 67108864 ) == 67108864 ) {
+        if ( (( $designation & 2097152 ) == 2097152) and (( $designation & 536870912 ) == 536870912) ) { print "lava."; }
+        else { print "water."; }
     }
+    else { print "no liquid."; }
         
-    $page =~ s/\n$//;
-    $page2 =~ s/\n$//;
-    
-    open my $DAT, ">", "lite_$map_name.txt" or croak( "horribly: $!" );
-    print $DAT $page;
-    close $DAT;
-    
-    my $gz = gzopen("full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
-    $gz->gzwrite($page2)  or croak( "horribly: ".$gzerrno );
-    $gz->gzclose ;
+    $proc->set_u32( $block_offset+$tile_designation_offset+(4*$tile_index), $designation );
+
+#    for my $y ( 0..15 ) {                           # cycle through 16 x and 16 y values, which generate a total of 256 tile indexes
+#        for my $x ( 0..15 ) {
+#
+#            my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
+#
+#		next if ( ( $designation_data[$tile_index] & 512 ) == 512 );	# skip tile if it is hidden
+#
+#            my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
+#            my $real_y = ($by*16)+$y;
+#
+#            $full_map_data[$real_x][$real_y][$bz] =     # store in the array that holds the full map data :
+#                $type_data[$tile_index] . ":" .         # the type data of the tile with the current index
+#                $designation_data[$tile_index] . ":" .  # the designation data of the tile with the current index
+#                $ocupation_data[$tile_index];           # the occupation data of the tile with the current index
+#        }
+#    }
 }
 
 __END__
