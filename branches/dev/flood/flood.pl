@@ -12,7 +12,7 @@ use Compress::Zlib;
 
 ### set up variables ###########################################################
 ################################################################################
-my ($dwarf_pid, $pe_timestamp, $ver, $input);
+my ($dwarf_pid, $pe_timestamp, $ver);
 
 my $pe_timestamp_offset = 0x004000F8;
 
@@ -102,10 +102,11 @@ for my $i ( 0..$#offsets ) {
     }
 }
     
-while ( $input = <STDIN> ) {
+while ( my $input = <STDIN> ) {
     chomp($input);
     last if $input eq 'q';
     loadmap();
+    print "\nPress enter to work on next tile or enter q to quit.\n";
 }
 
 undef $proc;                                                # close process
@@ -115,8 +116,6 @@ undef $proc;                                                # close process
 ################################################################################
 
 sub loadmap {
-    print "Loading map data.\n";
-
     my $map_base;                                   # offset of the address where the map blocks start
     my ($xcount, $ycount, $zcount);                 # dimensions of the map data we're dealing with
     my ($xmouse, $ymouse, $zmouse);                 # cursor coordinates
@@ -179,14 +178,21 @@ sub process_block {
     $designation = $designation | 67108864;
     $designation = $designation | 7;
     
-    print "\nThis would fill it with " . ($designation & 7) . " units of ";    
+    print "\nFill it with " . ($designation & 7) . " units of ";    
     if ( ( $designation & 67108864 ) == 67108864 ) {
-        if ( (( $designation & 2097152 ) == 2097152) and (( $designation & 536870912 ) == 536870912) ) { print "lava."; }
-        else { print "water."; }
+        if ( (( $designation & 2097152 ) == 2097152) and (( $designation & 536870912 ) == 536870912) ) { print "lava? (y/n)"; }
+        else { print "water? (y/n)"; }
     }
-    else { print "no liquid."; }
-        
-    $proc->set_u32( $block_offset+$tile_designation_offset+(4*$tile_index), $designation );
+    
+    my $input = <STDIN>;
+    chomp($input);
+    
+    if ($input eq 'y') {
+        $proc->set_u32( $block_offset+$tile_designation_offset+(4*$tile_index), $designation );
+    }
+    else {
+        return;
+    }
 
 #    for my $y ( 0..15 ) {                           # cycle through 16 x and 16 y values, which generate a total of 256 tile indexes
 #        for my $x ( 0..15 ) {
