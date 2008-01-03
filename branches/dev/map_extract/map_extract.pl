@@ -84,6 +84,7 @@ my $proc;
 my @full_map_data;                              # array to hold the full extracted map data
 
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
+my $show_hidden = 0;
 
 ################################################################################
 
@@ -108,12 +109,17 @@ croak "Couldn't open memory access to Dwarf Fortress, this is really odd and sho
 $pe_timestamp = $proc->get_u32( $pe_timestamp_offset );
 for my $i ( 0..$#offsets ) {
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
-        print "We seem to be using: DF $offsets[$i]{version}\nIf this is correct, press enter. If not, please CTRL+C now and contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n";
-        $input = <STDIN>;
+        print "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? [yes] ";
+        chomp( my $input = <STDIN> );
+        exit if ( $input and ($input !~ /y/i) );
         $ver = $i;
         last;
     }
 }
+
+print "--> Do you want to show hidden tiles? (can cause slow-down) [no] ";
+$input = <STDIN>;
+$show_hidden = 1 if ( $input =~ /y/i  );
 
 print "Processing map data.\n";
 
@@ -185,7 +191,7 @@ sub process_block {
 
             my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
 
-		next if ( ( $designation_data[$tile_index] & 512 ) == 512 );	# skip tile if it is hidden
+		    next if ( ( $designation_data[$tile_index] & 512 ) == 512 and !$show_hidden );	# skip tile if it is hidden
 
             my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
             my $real_y = ($by*16)+$y;
@@ -204,7 +210,7 @@ sub print_files {
     my ($xcount, $ycount, $zcount) = @_;
     my $real_z;
     
-    print "Please enter the name of your fortress (1 word, alphanumeric + _): ";
+    print "--> Please enter the name of your fortress (1 word, alphanumeric + _): ";
     my $map_name = <STDIN>;
     $map_name =~ /.*?(\w+).*?/;
     $map_name = $1;
