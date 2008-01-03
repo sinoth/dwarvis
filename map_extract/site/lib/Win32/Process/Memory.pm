@@ -219,7 +219,7 @@ sub search_range_pack {
 
 sub search_range_packs {
 	my ( $this, $packtype ) = ( shift, shift );
-	$this->search_range_pack( $packtype x ( scalar(@_) - 1 ), @_ );
+	$this->search_range_pack( $packtype x ( scalar(@_) - 2 ), @_ );
 }
 
 sub search_pack {
