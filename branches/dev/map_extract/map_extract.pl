@@ -83,8 +83,11 @@ my $proc;
 
 my @full_map_data;                              # array to hold the full extracted map data
 
-### get dwarf process id #######################################################
+my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
+
 ################################################################################
+
+### get dwarf process id #######################################################
 my %list = Win32::Process::List->new()->GetProcesses();
 for my $key ( keys %list ) {
     $dwarf_pid = $key   if ( $list{$key} =~ /dwarfort.exe/ );
@@ -92,19 +95,16 @@ for my $key ( keys %list ) {
 croak "Couldn't find process ID, make sure DF is running and a savegame is loaded." unless ( $dwarf_pid );
 
 ### lower priority of dwarf fortress ###########################################
-################################################################################
 Win32::Process::Open( my $dwarf_process, $dwarf_pid, 1 );
 $dwarf_process->SetPriorityClass( IDLE_PRIORITY_CLASS );
 croak "Couldn't lower process priority, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $dwarf_process );
 
 ### actually read stuff from memory ############################################
-################################################################################
 $proc = Win32::Process::Memory->new({ pid  => $dwarf_pid, access => 'read/query' });   # open process with read access
 croak "Couldn't open memory access to Dwarf Fortress, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $proc );
 
 
 ### Let's Pla... erm, figure out what version this is ##########################
-################################################################################
 $pe_timestamp = $proc->get_u32( $pe_timestamp_offset );
 for my $i ( 0..$#offsets ) {
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
@@ -168,6 +168,8 @@ sub loadmap {
     print "Files printed, shutting down.\n";
 }
 
+################################################################################
+
 sub process_block {
     my ($block_offset, $bx, $by, $bz) = @_;
 
@@ -196,38 +198,50 @@ sub process_block {
     }
 }
 
+################################################################################
+
 sub print_files {
     my ($xcount, $ycount, $zcount) = @_;
+    my $real_z;
     
     print "Please enter the name of your fortress (1 word, alphanumeric + _): ";
     my $map_name = <STDIN>;
     $map_name =~ /.*?(\w+).*?/;
     $map_name = $1;
     
-    my $page = "$map_name|$xcount|$ycount\n";
-    my $page2 = "$map_name|$xcount|$ycount\n";
+    my $page = "$map_name|$xcount|$ycount\n";               #lite
+    my $page2 = "$map_name|$xcount|$ycount\n";              #full
+    my $page3_head =    "DFMM". pack ( "C",$bin_version ) ."\n".
+                        "$map_name\n". 
+                    pack ( "C", $xcount ) . pack ( "C", $ycount );
+    my $page3 = "\n";    #bin
     
     for my $z ( 0..$zcount-1 ) {
         my $map1 = sprintf ("-%03d-\n", $z);
         my $map2 = sprintf ("-%03d-\n", $z);
+        my $map3;
         my $allocated;
         for my $y ( 0..($ycount*16)-1 ) {
             my $line1;
             my $line2;
+            my $line3;
             for my $x ( 0..($xcount*16)-1 ) {
                 if ($full_map_data[$x][$y][$z]) {
                     $line1 .= sprintf ( "%4d ", split (/:/, $full_map_data[$x][$y][$z], 2) );
                     $line2 .= $full_map_data[$x][$y][$z]."|";
+                    $line3 .= pack ( "SLL", split ( /:/, $full_map_data[$x][$y][$z] ) );
                     $allocated = 1;
                 }
                 else {
                     $line1 .= "  -1 ";
                     $line2 .= "-1|";
+                    $line3 .= pack ( "SLL", 0, 0, 0 );
                 }
             }
             $line2 =~ s/\|$//;
             $map1 .= $line1."\n";
             $map2 .= $line2."\n";
+            $map3 .= $line3;
         }
         
         if ($allocated) {
@@ -235,12 +249,17 @@ sub print_files {
             $map2 =~ s/\n$//;
             $page .= $map1."\n";
             $page2 .= $map2."\n";
+            $page3 .= $map3."\n";
+            $real_z++;
         }
         print " ". $z+1 ." / $zcount \n";
     }
         
     $page =~ s/\n$//;
     $page2 =~ s/\n$//;
+    $page3 =~ s/\n$//;
+    
+    $page3 = $page3_head. pack ( "C", $real_z ) .$page3;
     
     open my $DAT, ">", "lite_$map_name.txt" or croak( "horribly: $!" );
     print $DAT $page;
@@ -248,6 +267,10 @@ sub print_files {
     
     my $gz = gzopen("full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
     $gz->gzwrite($page2)  or croak( "horribly: ".$gzerrno );
+    $gz->gzclose ;
+    
+    $gz = gzopen("bin_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
+    $gz->gzwrite($page3)  or croak( "horribly: ".$gzerrno );
     $gz->gzclose ;
 }
 
