@@ -9,6 +9,7 @@ use Win32::Process::List;
 use Win32::Process;
 use Win32::Process::Memory;
 use Compress::Zlib;
+use Getopt::Long;
 
 ### set up variables ###########################################################
 ################################################################################
@@ -84,7 +85,46 @@ my $proc;
 my @full_map_data;                              # array to hold the full extracted map data
 
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
-my $show_hidden = 0;
+my $version = 1.000;                            # version of the map_extract tool
+my $show_hidden;
+my $quiet;
+my $no_ask;
+my $map_name = "Fortressname";
+my $help;
+
+Getopt::Long::Configure ("bundling");
+GetOptions (    "n|name=s"              => \$map_name,  
+                "s|show"                => \$show_hidden,
+                "h|help"                => \$help,  
+                "a|no_ask"              => \$no_ask,  
+                "q|quiet"               => \$quiet); 
+                
+if ( $help ) {
+    say("
+map_extract.pl - extracts dwarf fortress map data from the memory while ingame
+
+Usage:
+
+ map_extract [options]
+
+ Options:
+   -n, --name=NAME    sets the name of the fortress, default: Fortressname
+   -s, --show         makes hidden tiles show up, can cause slow-down, def: off
+   -q, --quiet        prevents the printing of informations: def: off
+   -a, --no_ask       prevents requests for user input: default off
+   -h, --help         displays this help   
+
+Sample:
+ 
+ This exports a fortress with the name Axedgears, without asking the user for
+ any further input, while including data about hidden tiles.
+ 
+ map_extract -as -n=Axedgears");
+exit;
+}
+else {
+    say("Show help with 'map_extract -h'.");
+}
 
 ################################################################################
 
@@ -109,31 +149,38 @@ croak "Couldn't open memory access to Dwarf Fortress, this is really odd and sho
 $pe_timestamp = $proc->get_u32( $pe_timestamp_offset );
 for my $i ( 0..$#offsets ) {
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
-        print "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? [yes] ";
-        chomp( my $input = <STDIN> );
-        exit if ( $input and ($input !~ /y/i) );
+        unless ( $no_ask ) {
+            ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? [yes] " );
+            chomp( my $input = <STDIN> );
+            exit if ( $input and ($input !~ /y/i) );
+        }
         $ver = $i;
         last;
     }
 }
 
-print "--> Do you want to show hidden tiles? (can cause slow-down) [no] ";
-$input = <STDIN>;
-$show_hidden = 1 if ( $input =~ /y/i  );
+croak "Version could not be correctly identified. Please contact Xenofur/Mithaldu for updated memory addresses." unless $ver;
 
-print "Processing map data.\n";
+unless ( $show_hidden or $no_ask ) {
+    ask( "--> Do you want to show hidden tiles? (can cause slow-down) [no] " );
+    $input = <STDIN>;
+    $show_hidden = 1 if ( $input =~ /y/i  );
+}
+
+say( "Processing map data." );
 
 loadmap();
 
 undef $proc;                                                # close process
 
-print "Press enter to close...";
-$input = <STDIN>;
+say( "Press enter to close..." );
+
+$input = <STDIN> unless ( $quiet or $no_ask );
 
 ################################################################################
 
 sub loadmap {
-    print "Loading map data.\n";
+    say( "Loading map data." );
 
     my $map_base;                                   # offset of the address where the map blocks start
     my ($xcount, $ycount, $zcount);                 # dimensions of the map data we're dealing with
@@ -167,11 +214,11 @@ sub loadmap {
             }
         }
     }
-    print "Done reading DF memory, printing to files.\n";
+    say( "Done reading DF memory, printing to files." );
 
     print_files( $xcount, $ycount, $zcount );
 
-    print "Files printed, shutting down.\n";
+    say( "Files printed, shutting down." );
 }
 
 ################################################################################
@@ -210,10 +257,12 @@ sub print_files {
     my ($xcount, $ycount, $zcount) = @_;
     my $real_z;
     
-    print "--> Please enter the name of your fortress (1 word, alphanumeric + _): ";
-    my $map_name = <STDIN>;
-    $map_name =~ /.*?(\w+).*?/;
-    $map_name = $1;
+    unless ( $no_ask ) {
+        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _): " );
+        $map_name = <STDIN>;
+        $map_name =~ /.*?(\w+).*?/;
+        $map_name = $1;
+    }
     
     my $page = "$map_name|$xcount|$ycount\n";               #lite
     my $page2 = "$map_name|$xcount|$ycount\n";              #full
@@ -258,7 +307,7 @@ sub print_files {
             $page3 .= $map3."\n";
             $real_z++;
         }
-        print " ". $z+1 ." / $zcount \n";
+        say( " ". $z+1 ." / $zcount" );
     }
         
     $page =~ s/\n$//;
@@ -280,6 +329,10 @@ sub print_files {
     $gz->gzclose ;
 }
 
+################################################################################
+
+sub say { return if $quiet; print "$_[0]\n"; }
+sub ask { print "$_[0]"; }
 __END__
 
 
