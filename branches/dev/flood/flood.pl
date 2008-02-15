@@ -175,8 +175,10 @@ sub process_block {
     }
     else { print "no liquid."; }
     
-    $designation = $designation | 67108864;
-    $designation = $designation | 7;
+    $designation = $designation | 536870912;    # +lava
+    $designation = $designation | 2097152;      # +lava
+    $designation = $designation | 67108864;     # +liquid
+    $designation = $designation | 7;            # amount
     
     print "\nFill it with " . ($designation & 7) . " units of ";    
     if ( ( $designation & 67108864 ) == 67108864 ) {
@@ -188,7 +190,8 @@ sub process_block {
     chomp($input);
     
     if ($input eq 'y') {
-        $proc->set_u32( $block_offset+$tile_designation_offset+(4*$tile_index), $designation );
+        #$proc->set_u32( $block_offset+$tile_designation_offset+(4*$tile_index), $designation );
+        $proc->set_u16( $block_offset+$tile_type_offset+(2*$tile_index), 0 );
     }
     else {
         return;
