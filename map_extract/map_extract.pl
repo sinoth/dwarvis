@@ -15,8 +15,6 @@ use Getopt::Long;
 ################################################################################
 my ($dwarf_pid, $pe_timestamp, $ver, $input);
 
-my $pe_timestamp_offset = 0x004000F8;
-
 my @offsets = (
     {
         version => "v0.27.169.33a",
@@ -24,7 +22,8 @@ my @offsets = (
         map_loc => 0x01458568,
         x_count => 0x01458580,
         y_count => 0x01458584,
-        z_count => 0x01458588
+        z_count => 0x01458588,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33b",
@@ -32,7 +31,8 @@ my @offsets = (
         map_loc => 0x01459568,
         x_count => 0x01459580,
         y_count => 0x01459584,
-        z_count => 0x01459588
+        z_count => 0x01459588,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33c",
@@ -40,7 +40,8 @@ my @offsets = (
         map_loc => 0x0145F560,
         x_count => 0x0145F578,
         y_count => 0x0145F57C,
-        z_count => 0x0145F580
+        z_count => 0x0145F580,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33d",
@@ -48,7 +49,8 @@ my @offsets = (
         map_loc => 0x01460560,
         x_count => 0x01460578,
         y_count => 0x0146057C,
-        z_count => 0x01460580
+        z_count => 0x01460580,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33e",
@@ -56,7 +58,8 @@ my @offsets = (
         map_loc => 0x01461560,
         x_count => 0x01461578,
         y_count => 0x0146157C,
-        z_count => 0x01461580
+        z_count => 0x01461580,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33f",
@@ -64,7 +67,8 @@ my @offsets = (
         map_loc => 0x01462568,
         x_count => 0x01462580,
         y_count => 0x01462584,
-        z_count => 0x01462588
+        z_count => 0x01462588,
+		pe_timestamp_offset => 0x004000F8
     },
     {
         version => "v0.27.169.33g",
@@ -72,7 +76,17 @@ my @offsets = (
         map_loc => 0x01469680,
         x_count => 0x01469698,
         y_count => 0x0146969C,
-        z_count => 0x014696A0
+        z_count => 0x014696A0,
+		pe_timestamp_offset => 0x004000F8
+    },
+    {
+        version => "v0.27.173.38a",
+        PE => 0x47A7D2A6,
+        map_loc => 0x014929CC,
+        x_count => 0x014929E4,
+        y_count => 0x014929E8,
+        z_count => 0x014929EC,
+		pe_timestamp_offset => 0x00400100
     },
 );
 
@@ -146,8 +160,9 @@ croak "Couldn't open memory access to Dwarf Fortress, this is really odd and sho
 
 
 ### Let's Pla... erm, figure out what version this is ##########################
-$pe_timestamp = $proc->get_u32( $pe_timestamp_offset );
+
 for my $i ( 0..$#offsets ) {
+	$pe_timestamp = $proc->get_u32( $offsets[$i]{pe_timestamp_offset} );
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
         unless ( $no_ask ) {
             ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? [yes] " );
