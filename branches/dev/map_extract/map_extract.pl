@@ -173,7 +173,7 @@ Sample:
 exit;
 }
 else {
-    say("Show help with 'map_extract -h'.");
+    say("map_extract.pl - extracts dwarf fortress map data from the memory while ingame\nShow help with 'map_extract -h'.\n");
 }
 
 ################################################################################
@@ -309,10 +309,11 @@ sub print_files {
     my $real_z;
     
     unless ( $no_ask ) {
-        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _): " );
+        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _) [FortressName]: " );
         $map_name = <STDIN>;
         $map_name =~ /.*?(\w+).*?/;
         $map_name = $1;
+		$map_name = "FortressName" unless $map_name;
     }
     
     my $page = "$map_name|$xcount|$ycount\n";               #lite
