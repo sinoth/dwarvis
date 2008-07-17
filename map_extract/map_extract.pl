@@ -201,7 +201,7 @@ for my $i ( 0..$#offsets ) {
 	$pe_timestamp = $proc->get_u32( $offsets[$i]{pe_timestamp_offset} );
     if ( $offsets[$i]{PE} == $pe_timestamp ) {
         unless ( $no_ask ) {
-            ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? [yes] " );
+            ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? (yes/no) [yes] " );
             chomp( my $input = <STDIN> );
             exit if ( $input and ($input !~ /y/i) );
         }
@@ -213,7 +213,7 @@ for my $i ( 0..$#offsets ) {
 croak "Version could not be correctly identified. Please contact Xenofur/Mithaldu for updated memory addresses." unless $ver;
 
 unless ( $show_hidden or $no_ask ) {
-    ask( "--> Do you want to show hidden tiles? (can cause slow-down) [no] " );
+    ask( "--> Do you want to show hidden tiles? (can cause slow-down) (yes/no) [no] " );
     $input = <STDIN>;
     $show_hidden = 1 if ( $input =~ /y/i  );
 }
