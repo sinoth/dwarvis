@@ -40,11 +40,11 @@ sub import {
     return;
 }
 
-die "Perl lib version (v5.8.8) doesn't match executable version ($])"
+die "Perl lib version (5.10.0) doesn't match executable version ($])"
     unless $^V;
 
-$^V eq v5.8.8
-    or die "Perl lib version (v5.8.8) doesn't match executable version (" .
+$^V eq 5.10.0
+    or die "Perl lib version (5.10.0) doesn't match executable version (" .
 	sprintf("v%vd",$^V) . ")";
 
 
@@ -100,5 +100,5 @@ tie %Config, 'Config', {
     so => 'dll',
     useithreads => 'define',
     usevendorprefix => undef,
-    version => '5.8.8',
+    version => '5.10.0',
 };
