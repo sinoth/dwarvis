@@ -80,13 +80,49 @@ my @offsets = (
 		pe_timestamp_offset => 0x004000F8
     },
     {
-        version => "v0.27.173.38a",
+        version => "v0.27.176.38a",
         PE => 0x47A7D2A6,
         map_loc => 0x014929CC,
         x_count => 0x014929E4,
         y_count => 0x014929E8,
         z_count => 0x014929EC,
 		pe_timestamp_offset => 0x00400100
+    },
+    {
+        version => "v0.27.176.38a",
+        PE => 0x47B6FAC2,
+        map_loc => 0x014A4EAC,
+        x_count => 0x014A4EC4,
+        y_count => 0x014A4EC8,
+        z_count => 0x014A4ECC,
+		pe_timestamp_offset => 0x00400100
+    },
+    {
+        version => "v0.27.176.38c",
+        PE => 0x47C29583,
+        map_loc => 0x014A60A4,
+        x_count => 0x014A60BC,
+        y_count => 0x014A60C0,
+        z_count => 0x014A60C4,
+		pe_timestamp_offset => 0x00400100
+    },
+    {
+        version => "v0.28.181.39b",
+        PE => 0x487C9338,
+        map_loc => 0x01555028,
+        x_count => 0x01555040,
+        y_count => 0x01555044,
+        z_count => 0x01555048,
+		pe_timestamp_offset => 0x00400108
+    },
+    {
+        version => "v0.28.181.39c",
+        PE => 0x487F2F30,
+        map_loc => 0x01555048,
+        x_count => 0x01555060,
+        y_count => 0x01555064,
+        z_count => 0x01555068,
+		pe_timestamp_offset => 0x00400108
     },
 );
 
@@ -331,11 +367,11 @@ sub print_files {
     
     $page3 = $page3_head. pack ( "C", $real_z ) .$page3;
     
-    open my $DAT, ">", "lite_$map_name.txt" or croak( "horribly: $!" );
+    open my $DAT, ">", "lite\\lite_$map_name.txt" or croak( "horribly: $!" );
     print $DAT $page;
     close $DAT;
     
-    my $gz = gzopen("full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
+    my $gz = gzopen("save\\full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
     $gz->gzwrite($page2)  or croak( "horribly: ".$gzerrno );
     $gz->gzclose ;
     
