@@ -1,4 +1,9 @@
 #!/usr/bin/perl
+################################################################################
+### watch for blocks like this one to tell #####################################
+### you where to add address data manually! ####################################
+################################################################################
+
 use 5.010;
 use strict;
 use warnings;
@@ -48,7 +53,8 @@ $input = <STDIN> unless ( $quiet or $no_ask );
 
 
 ################################################################################
-### functions below ############################################################
+### functions below, edit the end of populate_memory_data_store ################
+### to add memory address data #################################################
 ################################################################################
 
 
@@ -144,7 +150,21 @@ sub populate_memory_data_store {
             z_count => 0x014A60C4,
             pe_timestamp_offset => 0x00400100
         },
+        {
+            version => "v0.28.181.39c",
+            PE => 0x487f2f30,
+            map_loc => 0x01555048,
+            x_count => 0x01555060,
+            y_count => 0x01555064,
+            z_count => 0x01555068,
+            pe_timestamp_offset => 0x00400108
+        },
     ); # OFFSETS END HERE - DO NOT REMOVE THIS COMMENT
+    
+################################################################################
+### add memory address data above the line marking the end of the ##############
+### offsets in the same manner as the other blocks are formatted ###############
+################################################################################
     
     $tile_type_offset        = 0x005E;
     $tile_designation_offset = 0x0260;
@@ -260,9 +280,15 @@ sub import_remote_xml {
     
     say "    Found ".($#xml_list+1)." memory data files...";
     
-    for my $file (@xml_list) {        
+    for my $file (@xml_list) {
+        my $known = 0;
         for my $i ( 0..$#offsets ) {
-            next if $file =~ m/$offsets[$i]{version}/;
+            $known = 1 if $file =~ m/$offsets[$i]{version}/;
+        }
+        
+        if ($known) {
+            say "    One file ($file) discarded, memory data inside already known.";
+            next;
         }
         
         my $xml = get($source.$file);
@@ -278,9 +304,15 @@ sub import_local_xml {
     
     say "    Found ".($#xml_list+1)." memory data files...";
     
-    for my $file (@xml_list) {      
+    for my $file (@xml_list) {    
+        my $known = 0;  
         for my $i ( 0..$#offsets ) {
-            next if $file =~ m/$offsets[$i]{version}/;
+            $known = 1 if $file =~ m/$offsets[$i]{version}/;
+        }
+        
+        if ($known) {
+            say "    One file ($file) discarded, memory data inside already known.";
+            next;
         }
         
         open my $HANDLE, "<", $file;
@@ -337,12 +369,12 @@ sub process_xml {
         if ( $line =~ m/OFFSETS\ END\ HERE/ ) {
             push @new_data_store, "        {\n";
             push @new_data_store, "            version => \"$config_hash{version}\",\n";
-            push @new_data_store, "            PE => ".sprintf("%d", $config_hash{PE}).",\n";
-            push @new_data_store, "            map_loc => ".sprintf("%d", $config_hash{map_loc}).",\n";
-            push @new_data_store, "            x_count => ".sprintf("%d", $config_hash{x_count}).",\n";
-            push @new_data_store, "            y_count => ".sprintf("%d", $config_hash{y_count}).",\n";
-            push @new_data_store, "            z_count => ".sprintf("%d", $config_hash{z_count}).",\n";
-            push @new_data_store, "            pe_timestamp_offset => ".sprintf("%d", $config_hash{pe_timestamp_offset})."\n";
+            push @new_data_store, "            PE => ".sprintf("0x%08x", $config_hash{PE}).",\n";
+            push @new_data_store, "            map_loc => ".sprintf("0x%08x", $config_hash{map_loc}).",\n";
+            push @new_data_store, "            x_count => ".sprintf("0x%08x", $config_hash{x_count}).",\n";
+            push @new_data_store, "            y_count => ".sprintf("0x%08x", $config_hash{y_count}).",\n";
+            push @new_data_store, "            z_count => ".sprintf("0x%08x", $config_hash{z_count}).",\n";
+            push @new_data_store, "            pe_timestamp_offset => ".sprintf("0x%08x", $config_hash{pe_timestamp_offset})."\n";
             push @new_data_store, "        },\n";
         }
         push @new_data_store, $line;
