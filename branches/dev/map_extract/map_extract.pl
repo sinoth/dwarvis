@@ -1,234 +1,384 @@
 #!/usr/bin/perl
+use 5.010;
 use strict;
 use warnings;
-use Carp;
-
 $|=1;
 
+use Carp;
 use Win32::Process::List;
 use Win32::Process;
 use Win32::Process::Memory;
 use Compress::Zlib;
 use Getopt::Long;
+use LWP::Simple;
 
-### set up variables ###########################################################
-################################################################################
-my ($dwarf_pid, $pe_timestamp, $ver, $input);
-
-my @offsets = (
-    {
-        version => "v0.27.169.33a",
-        PE => 0x4729DA32,
-        map_loc => 0x01458568,
-        x_count => 0x01458580,
-        y_count => 0x01458584,
-        z_count => 0x01458588,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33b",
-        PE => 0x473E7E49,
-        map_loc => 0x01459568,
-        x_count => 0x01459580,
-        y_count => 0x01459584,
-        z_count => 0x01459588,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33c",
-        PE => 0x47480E76,
-        map_loc => 0x0145F560,
-        x_count => 0x0145F578,
-        y_count => 0x0145F57C,
-        z_count => 0x0145F580,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33d",
-        PE => 0x475099AA,
-        map_loc => 0x01460560,
-        x_count => 0x01460578,
-        y_count => 0x0146057C,
-        z_count => 0x01460580,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33e",
-        PE => 0x475B7526,
-        map_loc => 0x01461560,
-        x_count => 0x01461578,
-        y_count => 0x0146157C,
-        z_count => 0x01461580,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33f",
-        PE => 0x4763710C,
-        map_loc => 0x01462568,
-        x_count => 0x01462580,
-        y_count => 0x01462584,
-        z_count => 0x01462588,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.169.33g",
-        PE => 0x476CA6CE,
-        map_loc => 0x01469680,
-        x_count => 0x01469698,
-        y_count => 0x0146969C,
-        z_count => 0x014696A0,
-		pe_timestamp_offset => 0x004000F8
-    },
-    {
-        version => "v0.27.176.38a",
-        PE => 0x47A7D2A6,
-        map_loc => 0x014929CC,
-        x_count => 0x014929E4,
-        y_count => 0x014929E8,
-        z_count => 0x014929EC,
-		pe_timestamp_offset => 0x00400100
-    },
-    {
-        version => "v0.27.176.38a",
-        PE => 0x47B6FAC2,
-        map_loc => 0x014A4EAC,
-        x_count => 0x014A4EC4,
-        y_count => 0x014A4EC8,
-        z_count => 0x014A4ECC,
-		pe_timestamp_offset => 0x00400100
-    },
-    {
-        version => "v0.27.176.38c",
-        PE => 0x47C29583,
-        map_loc => 0x014A60A4,
-        x_count => 0x014A60BC,
-        y_count => 0x014A60C0,
-        z_count => 0x014A60C4,
-		pe_timestamp_offset => 0x00400100
-    },
-    {
-        version => "v0.28.181.39b",
-        PE => 0x487C9338,
-        map_loc => 0x01555028,
-        x_count => 0x01555040,
-        y_count => 0x01555044,
-        z_count => 0x01555048,
-		pe_timestamp_offset => 0x00400108
-    },
-    {
-        version => "v0.28.181.39c",
-        PE => 0x487F2F30,
-        map_loc => 0x01555048,
-        x_count => 0x01555060,
-        y_count => 0x01555064,
-        z_count => 0x01555068,
-		pe_timestamp_offset => 0x00400108
-    },
-);
-
-my $tile_type_offset        = 0x005E;
-my $tile_designation_offset = 0x0260;
-my $tile_occupancy_offset   = 0x0660;
-
-my $proc;
+my ($dwarf_pid, $pe_timestamp, $ver, $input, $show_hidden, $quiet, $no_ask,
+    $help, $proc, $tile_type_offset, $tile_designation_offset,
+    $tile_occupancy_offset, @offsets);
 
 my @full_map_data;                              # array to hold the full extracted map data
-
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
 my $version = 1.000;                            # version of the map_extract tool
-my $show_hidden;
-my $quiet;
-my $no_ask;
-my $map_name = "Fortressname";
-my $help;
+my $map_name = "Fortressname";                  # default fortress name
 
-Getopt::Long::Configure ("bundling");
-GetOptions (    "n|name=s"              => \$map_name,  
-                "s|show"                => \$show_hidden,
-                "h|help"                => \$help,  
-                "a|no_ask"              => \$no_ask,  
-                "q|quiet"               => \$quiet); 
-                
-if ( $help ) {
-    say("
-map_extract.pl - extracts dwarf fortress map data from the memory while ingame
+populate_memory_data_store();
 
-Usage:
+parse_parameters();
 
- map_extract [options]
+$ver = init_process_connection();
 
- Options:
-   -n, --name=NAME    sets the name of the fortress, default: Fortressname
-   -s, --show         makes hidden tiles show up, can cause slow-down, def: off
-   -q, --quiet        prevents the printing of informations: def: off
-   -a, --no_ask       prevents requests for user input: default off
-   -h, --help         displays this help   
+refresh_datastore() unless $ver;
 
-Sample:
- 
- This exports a fortress with the name Axedgears, without asking the user for
- any further input, while including data about hidden tiles.
- 
- map_extract -as -n=Axedgears");
-exit;
-}
-else {
-    say("map_extract.pl - extracts dwarf fortress map data from the memory while ingame\nShow help with 'map_extract -h'.\n");
-}
+my ( $xcount, $ycount, $zcount ) = map_extract() if $ver;
+undef $proc;    # close process
 
-################################################################################
+say( "Done reading DF memory, printing to files." );
+print_files( $xcount, $ycount, $zcount );
+say( "Files printed, shutting down." );
 
-### get dwarf process id #######################################################
-my %list = Win32::Process::List->new()->GetProcesses();
-for my $key ( keys %list ) {
-    $dwarf_pid = $key   if ( $list{$key} =~ /dwarfort.exe/ );
-}
-croak "Couldn't find process ID, make sure DF is running and a savegame is loaded." unless ( $dwarf_pid );
-
-### lower priority of dwarf fortress ###########################################
-Win32::Process::Open( my $dwarf_process, $dwarf_pid, 1 );
-$dwarf_process->SetPriorityClass( IDLE_PRIORITY_CLASS );
-croak "Couldn't lower process priority, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $dwarf_process );
-
-### actually read stuff from memory ############################################
-$proc = Win32::Process::Memory->new({ pid  => $dwarf_pid, access => 'read/query' });   # open process with read access
-croak "Couldn't open memory access to Dwarf Fortress, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $proc );
-
-
-### Let's Pla... erm, figure out what version this is ##########################
-
-for my $i ( 0..$#offsets ) {
-	$pe_timestamp = $proc->get_u32( $offsets[$i]{pe_timestamp_offset} );
-    if ( $offsets[$i]{PE} == $pe_timestamp ) {
-        unless ( $no_ask ) {
-            ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? (yes/no) [yes] " );
-            chomp( my $input = <STDIN> );
-            exit if ( $input and ($input !~ /y/i) );
-        }
-        $ver = $i;
-        last;
-    }
-}
-
-croak "Version could not be correctly identified. Please contact Xenofur/Mithaldu for updated memory addresses." unless $ver;
-
-unless ( $show_hidden or $no_ask ) {
-    ask( "--> Do you want to show hidden tiles? (can cause slow-down) (yes/no) [no] " );
-    $input = <STDIN>;
-    $show_hidden = 1 if ( $input =~ /y/i  );
-}
-
-say( "Processing map data." );
-
-loadmap();
-
-undef $proc;                                                # close process
-
-say( "Press enter to close..." );
-
+say "";
+say "Press enter to close...";
 $input = <STDIN> unless ( $quiet or $no_ask );
 
 ################################################################################
+### script ends here ###########################################################
+################################################################################
+
+
+
+
+################################################################################
+### functions below ############################################################
+################################################################################
+
+
+sub populate_memory_data_store {
+    @offsets = (
+        {
+            version => "v0.27.169.33a",
+            PE => 0x4729DA32,
+            map_loc => 0x01458568,
+            x_count => 0x01458580,
+            y_count => 0x01458584,
+            z_count => 0x01458588,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33b",
+            PE => 0x473E7E49,
+            map_loc => 0x01459568,
+            x_count => 0x01459580,
+            y_count => 0x01459584,
+            z_count => 0x01459588,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33c",
+            PE => 0x47480E76,
+            map_loc => 0x0145F560,
+            x_count => 0x0145F578,
+            y_count => 0x0145F57C,
+            z_count => 0x0145F580,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33d",
+            PE => 0x475099AA,
+            map_loc => 0x01460560,
+            x_count => 0x01460578,
+            y_count => 0x0146057C,
+            z_count => 0x01460580,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33e",
+            PE => 0x475B7526,
+            map_loc => 0x01461560,
+            x_count => 0x01461578,
+            y_count => 0x0146157C,
+            z_count => 0x01461580,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33f",
+            PE => 0x4763710C,
+            map_loc => 0x01462568,
+            x_count => 0x01462580,
+            y_count => 0x01462584,
+            z_count => 0x01462588,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.169.33g",
+            PE => 0x476CA6CE,
+            map_loc => 0x01469680,
+            x_count => 0x01469698,
+            y_count => 0x0146969C,
+            z_count => 0x014696A0,
+            pe_timestamp_offset => 0x004000F8
+        },
+        {
+            version => "v0.27.176.38a",
+            PE => 0x47A7D2A6,
+            map_loc => 0x014929CC,
+            x_count => 0x014929E4,
+            y_count => 0x014929E8,
+            z_count => 0x014929EC,
+            pe_timestamp_offset => 0x00400100
+        },
+        {
+            version => "v0.27.176.38a",
+            PE => 0x47B6FAC2,
+            map_loc => 0x014A4EAC,
+            x_count => 0x014A4EC4,
+            y_count => 0x014A4EC8,
+            z_count => 0x014A4ECC,
+            pe_timestamp_offset => 0x00400100
+        },
+        {
+            version => "v0.27.176.38c",
+            PE => 0x47C29583,
+            map_loc => 0x014A60A4,
+            x_count => 0x014A60BC,
+            y_count => 0x014A60C0,
+            z_count => 0x014A60C4,
+            pe_timestamp_offset => 0x00400100
+        },
+    ); # OFFSETS END HERE - DO NOT REMOVE THIS COMMENT
+    
+    $tile_type_offset        = 0x005E;
+    $tile_designation_offset = 0x0260;
+    $tile_occupancy_offset   = 0x0660;
+}
+
+
+################################################################################
+
+
+sub parse_parameters {
+    Getopt::Long::Configure ("bundling");
+    GetOptions (    "n|name=s"              => \$map_name,  
+                    "s|show"                => \$show_hidden,
+                    "h|help"                => \$help,  
+                    "a|no_ask"              => \$no_ask,  
+                    "q|quiet"               => \$quiet); 
+                    
+    if ( $help ) {
+        say("
+    map_extract.pl - extracts dwarf fortress map data from the memory while ingame
+    
+    Usage:
+    
+     map_extract [options]
+    
+     Options:
+       -n, --name=NAME    sets the name of the fortress, default: Fortressname
+       -s, --show         makes hidden tiles show up, can cause slow-down, def: off
+       -q, --quiet        prevents the printing of informations: def: off
+       -a, --no_ask       prevents requests for user input: default off
+       -h, --help         displays this help   
+    
+    Sample:
+     
+     This exports a fortress with the name Axedgears, without asking the user for
+     any further input, while including data about hidden tiles.
+     
+     map_extract -as -n=Axedgears");
+    exit;
+    }
+    else {
+        say("map_extract.pl - extracts dwarf fortress map data from the memory while ingame\nShow help with 'map_extract -h'.\n");
+    }
+}
+
+
+################################################################################
+
+
+sub init_process_connection {
+    ### get dwarf process id #######################################################
+    my %list = Win32::Process::List->new()->GetProcesses();
+    for my $key ( keys %list ) {
+        $dwarf_pid = $key   if ( $list{$key} =~ /dwarfort.exe/ );
+    }
+    croak "Couldn't find process ID, make sure DF is running and a savegame is loaded." unless ( $dwarf_pid );
+    
+    ### lower priority of dwarf fortress ###########################################
+    Win32::Process::Open( my $dwarf_process, $dwarf_pid, 1 );
+    $dwarf_process->SetPriorityClass( IDLE_PRIORITY_CLASS );
+    croak "Couldn't lower process priority, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $dwarf_process );
+    
+    ### actually read stuff from memory ############################################
+    $proc = Win32::Process::Memory->new({ pid  => $dwarf_pid, access => 'read/query' });   # open process with read access
+    croak "Couldn't open memory access to Dwarf Fortress, this is really odd and shouldn't happen, try running as administrator or poke Mithaldu/Xenofur." unless ( $proc );
+    
+    
+    ### Let's Pla... erm, figure out what version this is ##########################
+    
+    for my $i ( 0..$#offsets ) {
+        $pe_timestamp = $proc->get_u32( $offsets[$i]{pe_timestamp_offset} );
+        if ( $offsets[$i]{PE} == $pe_timestamp ) {
+            unless ( $no_ask ) {
+                ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? (yes/no) [yes] " );
+                chomp( my $input = <STDIN> );
+                croak "\nVersion could not be correctly identified. Please contact Xenofur/Mithaldu or Jifodu for updated memory addresses.\n"
+                    if ( $input and ($input !~ /y/i) );
+            }
+            return $i;
+        }
+    }
+}
+
+
+################################################################################
+
+
+sub refresh_datastore {
+    say "Could not find DF version in local data store. Checking for new memory address data...";
+    import_local_xml();
+    import_remote_xml();
+    say "";
+
+    $ver = init_process_connection();
+
+    if (!$ver) {
+        croak "Version could not be correctly identified. Please contact Xenofur/Mithaldu or Jifodu for updated memory addresses.\n";
+    }
+}
+
+sub import_remote_xml {
+    say "  Remotely...";
+    my $source = "http://www.geocities.com/jifodus/tables/dwarvis/";
+    my @xml_list;
+
+    my $list = get($source);
+    die "Couldn't get it!" unless defined $list;
+    
+    while ( $list =~ m/<A HREF="(.+?\.xml)">/gi ) {
+        push @xml_list, $1;
+    }
+    
+    say "    Found ".($#xml_list+1)." memory data files...";
+    
+    for my $file (@xml_list) {        
+        for my $i ( 0..$#offsets ) {
+            next if $file =~ m/$offsets[$i]{version}/;
+        }
+        
+        my $xml = get($source.$file);
+        die "Couldn't get it!" unless defined $xml;
+        
+        process_xml($xml);
+    }
+}
+
+sub import_local_xml {
+    say "  Locally...";
+    my @xml_list = glob "..\\conf\\*.xml";
+    
+    say "    Found ".($#xml_list+1)." memory data files...";
+    
+    for my $file (@xml_list) {      
+        for my $i ( 0..$#offsets ) {
+            next if $file =~ m/$offsets[$i]{version}/;
+        }
+        
+        open my $HANDLE, "<", $file;
+        my $xml = do { local $/; <$HANDLE>; };
+        close $HANDLE;
+        
+        process_xml($xml);
+    }
+}
+
+sub process_xml {
+    my ($xml) = @_;
+    my (@data_store,@new_data_store);
+    
+    my %config_hash;
+    
+    if( $xml =~ m/<version name="(.+?)" \/>/i ) {
+        $config_hash{version} = $1;
+    } else { return 0; }
+    
+    if( $xml =~ m/<pe timestamp_offset="0x(.+?)" timestamp="0x(.+?)" \/>/i ) {
+        $config_hash{pe_timestamp_offset} = hex($1);
+        $config_hash{PE} = hex($2);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="map_data" value="0x(.+?)" \/>/i ) {
+        $config_hash{map_loc} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="map_x_count" value="0x(.+?)" \/>/i ) {
+        $config_hash{x_count} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="map_y_count" value="0x(.+?)" \/>/i ) {
+        $config_hash{y_count} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="map_z_count" value="0x(.+?)" \/>/i ) {
+        $config_hash{z_count} = hex($1);
+    } else { return 0; }
+        
+    for my $i ( 0..$#offsets ) {
+        return 0 if $offsets[$i]{version} eq $config_hash{version};
+    }
+    
+    say "    Recognized new memory address data for DF $config_hash{version}, inserting into data store.";
+    push @offsets, \%config_hash;
+
+    open my $HANDLE, "<", "map_extract.pl";
+    @data_store = <$HANDLE>;
+    close $HANDLE;
+    
+    for my $line (@data_store) {
+        if ( $line =~ m/OFFSETS\ END\ HERE/ ) {
+            push @new_data_store, "        {\n";
+            push @new_data_store, "            version => \"$config_hash{version}\",\n";
+            push @new_data_store, "            PE => ".sprintf("%d", $config_hash{PE}).",\n";
+            push @new_data_store, "            map_loc => ".sprintf("%d", $config_hash{map_loc}).",\n";
+            push @new_data_store, "            x_count => ".sprintf("%d", $config_hash{x_count}).",\n";
+            push @new_data_store, "            y_count => ".sprintf("%d", $config_hash{y_count}).",\n";
+            push @new_data_store, "            z_count => ".sprintf("%d", $config_hash{z_count}).",\n";
+            push @new_data_store, "            pe_timestamp_offset => ".sprintf("%d", $config_hash{pe_timestamp_offset})."\n";
+            push @new_data_store, "        },\n";
+        }
+        push @new_data_store, $line;
+    }
+
+    open $HANDLE, ">", "map_extract.pl";
+    for my $line ( @new_data_store ) {
+        print $HANDLE $line;
+    }
+    close $HANDLE;
+}
+
+
+################################################################################
+
+
+sub map_extract {
+    unless ( $show_hidden or $no_ask ) {
+        ask( "--> Do you want to show hidden tiles? (can cause slow-down) (yes/no) [no] " );
+        $input = <STDIN>;
+        $show_hidden = 1 if ( $input =~ /y/i  );
+    }
+        
+    unless ( $no_ask ) {
+        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _) [FortressName]: " );
+        $map_name = <STDIN>;
+        $map_name =~ /.*?(\w+).*?/;
+        $map_name = $1;
+        $map_name = "FortressName" unless $map_name;
+    }
+    
+    say "";
+    say "Processing map data.";
+    
+    return loadmap();
+}
 
 sub loadmap {
     say( "Loading map data." );
@@ -265,14 +415,9 @@ sub loadmap {
             }
         }
     }
-    say( "Done reading DF memory, printing to files." );
-
-    print_files( $xcount, $ycount, $zcount );
-
-    say( "Files printed, shutting down." );
+    
+    return ( $xcount, $ycount, $zcount );
 }
-
-################################################################################
 
 sub process_block {
     my ($block_offset, $bx, $by, $bz) = @_;
@@ -289,7 +434,7 @@ sub process_block {
 
             my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
 
-		    next if ( ( $designation_data[$tile_index] & 512 ) == 512 and !$show_hidden );	# skip tile if it is hidden
+            next if ( ( $designation_data[$tile_index] & 512 ) == 512 and !$show_hidden );    # skip tile if it is hidden
 
             my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
             my $real_y = ($by*16)+$y;
@@ -302,19 +447,12 @@ sub process_block {
     }
 }
 
+
 ################################################################################
 
 sub print_files {
     my ($xcount, $ycount, $zcount) = @_;
     my $real_z;
-    
-    unless ( $no_ask ) {
-        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _) [FortressName]: " );
-        $map_name = <STDIN>;
-        $map_name =~ /.*?(\w+).*?/;
-        $map_name = $1;
-		$map_name = "FortressName" unless $map_name;
-    }
     
     my $page = "$map_name|$xcount|$ycount\n";               #lite
     my $page2 = "$map_name|$xcount|$ycount\n";              #full
@@ -381,10 +519,13 @@ sub print_files {
     $gz->gzclose ;
 }
 
+
 ################################################################################
 
-sub say { return if $quiet; print "$_[0]\n"; }
+
 sub ask { print "$_[0]"; }
+
+
 __END__
 
 
