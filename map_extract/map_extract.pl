@@ -18,8 +18,7 @@ use Getopt::Long;
 use LWP::Simple;
 
 my ($dwarf_pid, $pe_timestamp, $ver, $input, $show_hidden, $quiet, $no_ask,
-    $help, $proc, $tile_type_offset, $tile_designation_offset,
-    $tile_occupancy_offset, @offsets);
+    $help, $proc, @offsets);
 
 my @full_map_data;                              # array to hold the full extracted map data
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
@@ -67,7 +66,10 @@ sub populate_memory_data_store {
             x_count => 0x01458580,
             y_count => 0x01458584,
             z_count => 0x01458588,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33b",
@@ -76,7 +78,10 @@ sub populate_memory_data_store {
             x_count => 0x01459580,
             y_count => 0x01459584,
             z_count => 0x01459588,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33c",
@@ -85,7 +90,10 @@ sub populate_memory_data_store {
             x_count => 0x0145F578,
             y_count => 0x0145F57C,
             z_count => 0x0145F580,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33d",
@@ -94,7 +102,10 @@ sub populate_memory_data_store {
             x_count => 0x01460578,
             y_count => 0x0146057C,
             z_count => 0x01460580,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33e",
@@ -103,7 +114,10 @@ sub populate_memory_data_store {
             x_count => 0x01461578,
             y_count => 0x0146157C,
             z_count => 0x01461580,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33f",
@@ -112,7 +126,10 @@ sub populate_memory_data_store {
             x_count => 0x01462580,
             y_count => 0x01462584,
             z_count => 0x01462588,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.169.33g",
@@ -121,7 +138,10 @@ sub populate_memory_data_store {
             x_count => 0x01469698,
             y_count => 0x0146969C,
             z_count => 0x014696A0,
-            pe_timestamp_offset => 0x004000F8
+            pe_timestamp_offset => 0x004000F8,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.176.38a",
@@ -130,7 +150,10 @@ sub populate_memory_data_store {
             x_count => 0x014929E4,
             y_count => 0x014929E8,
             z_count => 0x014929EC,
-            pe_timestamp_offset => 0x00400100
+            pe_timestamp_offset => 0x00400100,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.176.38a",
@@ -139,7 +162,10 @@ sub populate_memory_data_store {
             x_count => 0x014A4EC4,
             y_count => 0x014A4EC8,
             z_count => 0x014A4ECC,
-            pe_timestamp_offset => 0x00400100
+            pe_timestamp_offset => 0x00400100,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.27.176.38c",
@@ -148,7 +174,10 @@ sub populate_memory_data_store {
             x_count => 0x014A60BC,
             y_count => 0x014A60C0,
             z_count => 0x014A60C4,
-            pe_timestamp_offset => 0x00400100
+            pe_timestamp_offset => 0x00400100,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
         {
             version => "v0.28.181.39c",
@@ -157,7 +186,10 @@ sub populate_memory_data_store {
             x_count => 0x01555060,
             y_count => 0x01555064,
             z_count => 0x01555068,
-            pe_timestamp_offset => 0x00400108
+            pe_timestamp_offset => 0x00400108,
+            type_off        => 0x005E,
+            designation_off => 0x0260,
+            occupancy_off   => 0x0660,
         },
     ); # OFFSETS END HERE - DO NOT REMOVE THIS COMMENT
     
@@ -166,9 +198,6 @@ sub populate_memory_data_store {
 ### offsets in the same manner as the other blocks are formatted ###############
 ################################################################################
     
-    $tile_type_offset        = 0x005E;
-    $tile_designation_offset = 0x0260;
-    $tile_occupancy_offset   = 0x0660;
 }
 
 
@@ -293,8 +322,12 @@ sub import_remote_xml {
         
         my $xml = get($source.$file);
         die "Couldn't get it!" unless defined $xml;
+    
+        my $msg_file = $file;
+        $msg_file =~ s/core\.xml/messages.txt/;
+        my $message = get($source.$msg_file);
         
-        process_xml($xml);
+        process_xml($xml,$message);
     }
 }
 
@@ -324,7 +357,7 @@ sub import_local_xml {
 }
 
 sub process_xml {
-    my ($xml) = @_;
+    my ($xml, $message) = @_;
     my (@data_store,@new_data_store);
     
     my %config_hash;
@@ -353,12 +386,25 @@ sub process_xml {
     if( $xml =~ m/<address name="map_z_count" value="0x(.+?)" \/>/i ) {
         $config_hash{z_count} = hex($1);
     } else { return 0; }
+    
+    if( $xml =~ m/<offset name="map_data_type_offset" value="0x(.+?)" \/>/i ) {
+        $config_hash{type_off} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<offset name="map_data_designation_offset" value="0x(.+?)" \/>/i ) {
+        $config_hash{designation_off} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<offset name="map_data_occupancy_offset" value="0x(.+?)" \/>/i ) {
+        $config_hash{occupancy_off} = hex($1);
+    } else { return 0; }
         
     for my $i ( 0..$#offsets ) {
         return 0 if $offsets[$i]{version} eq $config_hash{version};
     }
     
     say "    Recognized new memory address data for DF $config_hash{version}, inserting into data store.";
+    say "--- -- -\n$message\n--- -- -" if defined $message;
     push @offsets, \%config_hash;
 
     open my $HANDLE, "<", "map_extract.pl";
@@ -374,7 +420,10 @@ sub process_xml {
             push @new_data_store, "            x_count => ".sprintf("0x%08x", $config_hash{x_count}).",\n";
             push @new_data_store, "            y_count => ".sprintf("0x%08x", $config_hash{y_count}).",\n";
             push @new_data_store, "            z_count => ".sprintf("0x%08x", $config_hash{z_count}).",\n";
-            push @new_data_store, "            pe_timestamp_offset => ".sprintf("0x%08x", $config_hash{pe_timestamp_offset})."\n";
+            push @new_data_store, "            pe_timestamp_offset => ".sprintf("0x%08x", $config_hash{pe_timestamp_offset}).",\n";
+            push @new_data_store, "            type_off        => ".sprintf("0x%08x", $config_hash{type_off}).",\n";
+            push @new_data_store, "            designation_off => ".sprintf("0x%08x", $config_hash{designation_off}).",\n";
+            push @new_data_store, "            occupancy_off   => ".sprintf("0x%08x", $config_hash{occupancy_off}).",\n";
             push @new_data_store, "        },\n";
         }
         push @new_data_store, $line;
@@ -456,10 +505,10 @@ sub process_block {
 
     my @type_data        = $proc->get_packs(        # extract type/designation/occupation arrays for this block
         "S", 2,                                     # format and size in bytes of each data unit
-        $block_offset+$tile_type_offset,            # starting offset
+        $block_offset+$offsets[$ver]{type_off},            # starting offset
         256);                                       # number of units
-    my @designation_data = $proc->get_packs("L", 4, $block_offset+$tile_designation_offset, 256);
-    my @ocupation_data   = $proc->get_packs("L", 4, $block_offset+$tile_occupancy_offset,   256);
+    my @designation_data = $proc->get_packs("L", 4, $block_offset+$offsets[$ver]{designation_off}, 256);
+    my @ocupation_data   = $proc->get_packs("L", 4, $block_offset+$offsets[$ver]{occupancy_off},   256);
 
     for my $y ( 0..15 ) {                           # cycle through 16 x and 16 y values, which generate a total of 256 tile indexes
         for my $x ( 0..15 ) {
