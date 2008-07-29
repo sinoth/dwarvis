@@ -18,7 +18,7 @@ use Getopt::Long;
 use LWP::Simple;
 
 my ($dwarf_pid, $pe_timestamp, $ver, $input, $show_hidden, $quiet, $no_ask,
-    $help, $proc, @offsets);
+    $help, $proc, @offsets, $update_only);
 
 my @full_map_data;                              # array to hold the full extracted map data
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
@@ -33,12 +33,18 @@ $ver = init_process_connection();
 
 refresh_datastore() unless $ver;
 
-my ( $xcount, $ycount, $zcount ) = map_extract() if $ver;
-undef $proc;    # close process
-
-say( "Done reading DF memory, printing to files." );
-print_files( $xcount, $ycount, $zcount );
-say( "Files printed, shutting down." );
+if ($update_only) {
+    undef $proc;    # close process
+    say "Version data update complete.";    
+}
+else {
+    my ( $xcount, $ycount, $zcount ) = map_extract() if $ver;
+    undef $proc;    # close process
+    
+    say( "Done reading DF memory, printing to files." );
+    print_files( $xcount, $ycount, $zcount );
+    say( "Files printed, shutting down." );
+}
 
 say "";
 say "Press enter to close...";
@@ -208,6 +214,7 @@ sub parse_parameters {
     Getopt::Long::Configure ("bundling");
     GetOptions (    "n|name=s"              => \$map_name,  
                     "s|show"                => \$show_hidden,
+                    "u|updateonly"          => \$update_only,
                     "h|help"                => \$help,  
                     "a|no_ask"              => \$no_ask,  
                     "q|quiet"               => \$quiet); 
