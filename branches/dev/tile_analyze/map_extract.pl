@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 ################################################################################
 ### watch for blocks like this one to tell #####################################
 ### you where to add address data manually! ####################################
@@ -14,11 +14,10 @@ use Win32::Process::List;
 use Win32::Process;
 use Win32::Process::Memory;
 use Compress::Zlib;
-use Getopt::Long;
 use LWP::Simple;
 
-my ($dwarf_pid, $pe_timestamp, $ver, $input, $show_hidden, $quiet, $no_ask,
-    $help, $proc, @offsets, $update_only);
+my ( $dwarf_pid, $pe_timestamp, $ver, $input, $show_hidden, $quiet, $no_ask,
+    $help, $proc, @offsets, $update_only );
 
 my @full_map_data;                              # array to hold the full extracted map data
 my $bin_version = 1;                            # version of the binary memory map format, last changed 080103
@@ -27,28 +26,24 @@ my $map_name = "Fortressname";                  # default fortress name
 
 populate_memory_data_store();
 
-parse_parameters();
-
 $ver = init_process_connection();
 
 refresh_datastore() unless $ver;
 
-if ($update_only) {
-    undef $proc;    # close process
-    say "Version data update complete.";    
-}
-else {
-    my ( $xcount, $ycount, $zcount ) = map_extract() if $ver;
-    undef $proc;    # close process
-    
-    say( "Done reading DF memory, printing to files." );
-    print_files( $xcount, $ycount, $zcount );
-    say( "Files printed, shutting down." );
+say "Press enter to analyze tile under the cursor, then enter a small description.";
+say "Afterwards press enter to analyze the next tile or enter q to quit.\n";
+
+while ( $input = <STDIN> ) {
+    chomp($input);
+    last if $input eq 'q';
+    last if $input eq 'n';
+    loadmap();
+    print "Next? (y/q) [y]: "
 }
 
 say "";
 say "Press enter to close...";
-$input = <STDIN> unless ( $quiet or $no_ask );
+$input = <STDIN>;
 
 ################################################################################
 ### script ends here ###########################################################
@@ -65,138 +60,6 @@ $input = <STDIN> unless ( $quiet or $no_ask );
 
 sub populate_memory_data_store {
     @offsets = (
-        {
-            version => "v0.27.169.33a",
-            PE => 0x4729DA32,
-            map_loc => 0x01458568,
-            x_count => 0x01458580,
-            y_count => 0x01458584,
-            z_count => 0x01458588,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33b",
-            PE => 0x473E7E49,
-            map_loc => 0x01459568,
-            x_count => 0x01459580,
-            y_count => 0x01459584,
-            z_count => 0x01459588,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33c",
-            PE => 0x47480E76,
-            map_loc => 0x0145F560,
-            x_count => 0x0145F578,
-            y_count => 0x0145F57C,
-            z_count => 0x0145F580,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33d",
-            PE => 0x475099AA,
-            map_loc => 0x01460560,
-            x_count => 0x01460578,
-            y_count => 0x0146057C,
-            z_count => 0x01460580,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33e",
-            PE => 0x475B7526,
-            map_loc => 0x01461560,
-            x_count => 0x01461578,
-            y_count => 0x0146157C,
-            z_count => 0x01461580,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33f",
-            PE => 0x4763710C,
-            map_loc => 0x01462568,
-            x_count => 0x01462580,
-            y_count => 0x01462584,
-            z_count => 0x01462588,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.169.33g",
-            PE => 0x476CA6CE,
-            map_loc => 0x01469680,
-            x_count => 0x01469698,
-            y_count => 0x0146969C,
-            z_count => 0x014696A0,
-            pe_timestamp_offset => 0x004000F8,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.176.38a",
-            PE => 0x47A7D2A6,
-            map_loc => 0x014929CC,
-            x_count => 0x014929E4,
-            y_count => 0x014929E8,
-            z_count => 0x014929EC,
-            pe_timestamp_offset => 0x00400100,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.176.38a",
-            PE => 0x47B6FAC2,
-            map_loc => 0x014A4EAC,
-            x_count => 0x014A4EC4,
-            y_count => 0x014A4EC8,
-            z_count => 0x014A4ECC,
-            pe_timestamp_offset => 0x00400100,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.27.176.38c",
-            PE => 0x47C29583,
-            map_loc => 0x014A60A4,
-            x_count => 0x014A60BC,
-            y_count => 0x014A60C0,
-            z_count => 0x014A60C4,
-            pe_timestamp_offset => 0x00400100,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
-        {
-            version => "v0.28.181.39c",
-            PE => 0x487f2f30,
-            map_loc => 0x01555048,
-            x_count => 0x01555060,
-            y_count => 0x01555064,
-            z_count => 0x01555068,
-            pe_timestamp_offset => 0x00400108,
-            type_off        => 0x005E,
-            designation_off => 0x0260,
-            occupancy_off   => 0x0660,
-        },
     ); # OFFSETS END HERE - DO NOT REMOVE THIS COMMENT
     
 ################################################################################
@@ -204,47 +67,6 @@ sub populate_memory_data_store {
 ### offsets in the same manner as the other blocks are formatted ###############
 ################################################################################
     
-}
-
-
-################################################################################
-
-
-sub parse_parameters {
-    Getopt::Long::Configure ("bundling");
-    GetOptions (    "n|name=s"              => \$map_name,  
-                    "s|show"                => \$show_hidden,
-                    "u|updateonly"          => \$update_only,
-                    "h|help"                => \$help,  
-                    "a|no_ask"              => \$no_ask,  
-                    "q|quiet"               => \$quiet); 
-                    
-    if ( $help ) {
-        say("
-    map_extract.pl - extracts dwarf fortress map data from the memory while ingame
-    
-    Usage:
-    
-     map_extract [options]
-    
-     Options:
-       -n, --name=NAME    sets the name of the fortress, default: Fortressname
-       -s, --show         makes hidden tiles show up, can cause slow-down, def: off
-       -q, --quiet        prevents the printing of informations: def: off
-       -a, --no_ask       prevents requests for user input: default off
-       -h, --help         displays this help   
-    
-    Sample:
-     
-     This exports a fortress with the name Axedgears, without asking the user for
-     any further input, while including data about hidden tiles.
-     
-     map_extract -as -n=Axedgears");
-    exit;
-    }
-    else {
-        say("map_extract.pl - extracts dwarf fortress map data from the memory while ingame\nShow help with 'map_extract -h'.\n");
-    }
 }
 
 
@@ -274,12 +96,6 @@ sub init_process_connection {
     for my $i ( 0..$#offsets ) {
         $pe_timestamp = $proc->get_u32( $offsets[$i]{pe_timestamp_offset} );
         if ( $offsets[$i]{PE} == $pe_timestamp ) {
-            unless ( $no_ask ) {
-                ask( "We seem to be using: DF $offsets[$i]{version}\nIf this is not the correct version, please contact Xenofur/Mithaldu, as you might risk disastrous and hilarious results.\n--> Is this the correct version? (yes/no) [yes] " );
-                chomp( my $input = <STDIN> );
-                croak "\nVersion could not be correctly identified. Please contact Xenofur/Mithaldu or Jifodu for updated memory addresses.\n"
-                    if ( $input and ($input !~ /y/i) );
-            }
             return $i;
         }
     }
@@ -291,7 +107,6 @@ sub init_process_connection {
 
 sub refresh_datastore {
     say "Could not find DF version in local data store. Checking for new memory address data...";
-    import_local_xml();
     import_remote_xml();
     say "";
 
@@ -303,7 +118,6 @@ sub refresh_datastore {
 }
 
 sub import_remote_xml {
-    say "  Remotely...";
     my $source = "http://www.geocities.com/jifodus/tables/dwarvis/";
     my @xml_list;
 
@@ -314,7 +128,7 @@ sub import_remote_xml {
         push @xml_list, $1;
     }
     
-    say "    Found ".($#xml_list+1)." memory data files...";
+    say "Found ".($#xml_list+1)." memory data files...";
     
     for my $file (@xml_list) {
         my $known = 0;
@@ -323,7 +137,7 @@ sub import_remote_xml {
         }
         
         if ($known) {
-            say "    One file ($file) discarded, memory data inside already known.";
+            say "One file ($file) discarded, memory data inside already known.";
             next;
         }
         
@@ -335,31 +149,6 @@ sub import_remote_xml {
         my $message = get($source.$msg_file);
         
         process_xml($xml,$message);
-    }
-}
-
-sub import_local_xml {
-    say "  Locally...";
-    my @xml_list = glob "..\\conf\\*.xml";
-    
-    say "    Found ".($#xml_list+1)." memory data files...";
-    
-    for my $file (@xml_list) {    
-        my $known = 0;  
-        for my $i ( 0..$#offsets ) {
-            $known = 1 if $file =~ m/$offsets[$i]{version}/;
-        }
-        
-        if ($known) {
-            say "    One file ($file) discarded, memory data inside already known.";
-            next;
-        }
-        
-        open my $HANDLE, "<", $file;
-        my $xml = do { local $/; <$HANDLE>; };
-        close $HANDLE;
-        
-        process_xml($xml);
     }
 }
 
@@ -405,12 +194,24 @@ sub process_xml {
     if( $xml =~ m/<offset name="map_data_occupancy_offset" value="0x(.+?)" \/>/i ) {
         $config_hash{occupancy_off} = hex($1);
     } else { return 0; }
+    
+    if( $xml =~ m/<address name="mouse_x" value="0x(.+?)" \/>/i ) {
+        $config_hash{mouse_x} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="mouse_y" value="0x(.+?)" \/>/i ) {
+        $config_hash{mouse_y} = hex($1);
+    } else { return 0; }
+    
+    if( $xml =~ m/<address name="mouse_z" value="0x(.+?)" \/>/i ) {
+        $config_hash{mouse_z} = hex($1);
+    } else { return 0; }
         
     for my $i ( 0..$#offsets ) {
         return 0 if $offsets[$i]{version} eq $config_hash{version};
     }
     
-    say "    Recognized new memory address data for DF $config_hash{version}, inserting into data store.";
+    say "Recognized new memory data for DF $config_hash{version}, inserting into data store.";
     say "--- -- -\n$message\n--- -- -" if defined $message;
     push @offsets, \%config_hash;
 
@@ -431,6 +232,9 @@ sub process_xml {
             push @new_data_store, "            type_off        => ".sprintf("0x%08x", $config_hash{type_off}).",\n";
             push @new_data_store, "            designation_off => ".sprintf("0x%08x", $config_hash{designation_off}).",\n";
             push @new_data_store, "            occupancy_off   => ".sprintf("0x%08x", $config_hash{occupancy_off}).",\n";
+            push @new_data_store, "            mouse_x   => ".sprintf("0x%08x", $config_hash{mouse_x}).",\n";
+            push @new_data_store, "            mouse_y   => ".sprintf("0x%08x", $config_hash{mouse_y}).",\n";
+            push @new_data_store, "            mouse_z   => ".sprintf("0x%08x", $config_hash{mouse_z}).",\n";
             push @new_data_store, "        },\n";
         }
         push @new_data_store, $line;
@@ -447,32 +251,12 @@ sub process_xml {
 ################################################################################
 
 
-sub map_extract {
-    unless ( $show_hidden or $no_ask ) {
-        ask( "--> Do you want to show hidden tiles? (can cause slow-down) (yes/no) [no] " );
-        $input = <STDIN>;
-        $show_hidden = 1 if ( $input =~ /y/i  );
-    }
-        
-    unless ( $no_ask ) {
-        ask( "--> Please enter the name of your fortress (1 word, alphanumeric + _) [FortressName]: " );
-        $map_name = <STDIN>;
-        $map_name =~ /.*?(\w+).*?/;
-        $map_name = $1;
-        $map_name = "FortressName" unless $map_name;
-    }
-    
-    say "";
-    say "Processing map data.";
-    
-    return loadmap();
-}
-
 sub loadmap {
-    say( "Loading map data." );
-
     my $map_base;                                   # offset of the address where the map blocks start
     my ($xcount, $ycount, $zcount);                 # dimensions of the map data we're dealing with
+    my ($xmouse, $ymouse, $zmouse);                 # cursor coordinates
+    my ($xcell, $ycell, $zcell);                    # cursor cell coordinates
+    my ($xtile, $ytile, $ztile);                    # cursor tile coordinates inside the cell adressed above
     my (@xoffsets,@yoffsets,@zoffsets);             # arrays to store the offsets of the place where other addresses are stored
     @full_map_data=[];                              # array to hold the full extracted map data
     
@@ -481,168 +265,56 @@ sub loadmap {
 
     $xcount = $proc->get_u32( $offsets[$ver]{x_count} );         # find out how much data we're dealing with
     $ycount = $proc->get_u32( $offsets[$ver]{y_count} );
-    $zcount = $proc->get_u32( $offsets[$ver]{z_count} );
+    $zcount = $proc->get_u32( $offsets[$ver]{z_count} );    
+    
+    $xmouse = $proc->get_u32( $offsets[$ver]{mouse_x} );         # get mouse data
+    $ymouse = $proc->get_u32( $offsets[$ver]{mouse_y} );
+    $ztile  = $proc->get_u32( $offsets[$ver]{mouse_z} );
+    
+    ($xcell, $ycell) = ( int($xmouse/16), int($ymouse/16) );
+    
+    ($xtile, $ytile) = ( $xmouse%16, $ymouse%16 );
+    
                                                     # get the offsets of the address storages for each x-slice and cycle through
     @xoffsets = $proc->get_packs("L", 4, $map_base, $xcount);
-    for my $bx ( 0..$#xoffsets ) {
                                                         # get the offsets of the address storages for each y-column in this x-slice and cycle through
-        @yoffsets = $proc->get_packs("L", 4, $xoffsets[$bx], $ycount);
-        for my $by ( 0..$#yoffsets ) {
+    @yoffsets = $proc->get_packs("L", 4, $xoffsets[$xcell], $ycount);
                                                             # get the offsets of each z-block in this y-column and cycle through
-            @zoffsets = $proc->get_packs("L", 4, $yoffsets[$by], $zcount);
-            for my $bz ( 0..$#zoffsets ) {
+    @zoffsets = $proc->get_packs("L", 4, $yoffsets[$ycell], $zcount);
 
-                next if ( $zoffsets[$bz] == 0 );                # go to the next block if this one is not allocated
+	if ( $zoffsets[$ztile] == 0 ) {
+        print "\n\nTile not allocated. Designate target area, even if mid-air, then restart script."; # DANGER DANGER WILL ROBINSON
+        print "\nPress enter to exit."; # DANGER DANGER WILL ROBINSON
+        my $input = <STDIN>;
+        exit;
+	}
 
-                process_block(                                  # process the data in one block
-                    $zoffsets[$bz],                             # offset of the current block
-                    $bx,                                        # x location of the current block
-                    $by,                                        # y location of the current block
-                    $bz );                                      # z location of the current block
-
-            }
-        }
-    }
-    
-    return ( $xcount, $ycount, $zcount );
+    process_block(                                  # process the data in one block
+        $zoffsets[$ztile],                             # offset of the current block
+        $xtile,                                        # x location of the current block
+        $ytile );                                      # y location of the current block
 }
 
 sub process_block {
-    my ($block_offset, $bx, $by, $bz) = @_;
+    my ($block_offset, $bx, $by) = @_;
 
-    my @type_data        = $proc->get_packs(        # extract type/designation/occupation arrays for this block
-        "S", 2,                                     # format and size in bytes of each data unit
-        $block_offset+$offsets[$ver]{type_off},            # starting offset
-        256);                                       # number of units
-    my @designation_data = $proc->get_packs("L", 4, $block_offset+$offsets[$ver]{designation_off}, 256);
-    my @ocupation_data   = $proc->get_packs("L", 4, $block_offset+$offsets[$ver]{occupancy_off},   256);
+    my $tile_index = $by+($bx*16);                  # this calculates the tile index we are currently at, from the x and y coords in this block
 
-    for my $y ( 0..15 ) {                           # cycle through 16 x and 16 y values, which generate a total of 256 tile indexes
-        for my $x ( 0..15 ) {
-
-            my $tile_index = $y+($x*16);                # this calculates the tile index we are currently at, from the x and y coords in this block
-
-            next if ( ( $designation_data[$tile_index] & 512 ) == 512 and !$show_hidden );    # skip tile if it is hidden
-
-            my $real_x = ($bx*16)+$x;                   # this calculates the real x and y values of this tile on the overall map_base
-            my $real_y = ($by*16)+$y;
-
-            $full_map_data[$real_x][$real_y][$bz] =     # store in the array that holds the full map data :
-                $type_data[$tile_index] . ":" .         # the type data of the tile with the current index
-                $designation_data[$tile_index] . ":" .  # the designation data of the tile with the current index
-                $ocupation_data[$tile_index];           # the occupation data of the tile with the current index
-        }
-    }
+    my $type =          $proc->get_u16( $block_offset+$offsets[$ver]{type_off}+(2*$tile_index) );   # extract type/designation/occupation for this block
+    my $designation =   $proc->get_u32( $block_offset+$offsets[$ver]{designation_off}+(4*$tile_index) );
+    my $ocupation =     $proc->get_u32( $block_offset+$offsets[$ver]{occupancy_off}+(4*$tile_index) );
+    
+    my $tile = sprintf "%04d %032b %032b", $type, $designation, $ocupation;
+    say "\n$tile";
+    say "Please enter a small description:";
+    my $input = <STDIN>;
+    
+    open my $LOG, ">>", "log.txt";
+    print $LOG "$tile <- $input";
+    close $LOG;
 }
 
 
 ################################################################################
-
-sub print_files {
-    my ($xcount, $ycount, $zcount) = @_;
-    my $real_z;
-    
-    my $page = "$map_name|$xcount|$ycount\n";               #lite
-    my $page2 = "$map_name|$xcount|$ycount\n";              #full
-    my $page3_head =    "DFMM". pack ( "C",$bin_version ) ."\n".
-                        "$map_name\n". 
-                    pack ( "C", $xcount ) . pack ( "C", $ycount );
-    my $page3 = "\n";    #bin
-    
-    for my $z ( 0..$zcount-1 ) {
-        my $map1 = sprintf ("-%03d-\n", $z);
-        my $map2 = sprintf ("-%03d-\n", $z);
-        my $map3;
-        my $allocated;
-        for my $y ( 0..($ycount*16)-1 ) {
-            my $line1;
-            my $line2;
-            my $line3;
-            for my $x ( 0..($xcount*16)-1 ) {
-                if ($full_map_data[$x][$y][$z]) {
-                    $line1 .= sprintf ( "%4d ", split (/:/, $full_map_data[$x][$y][$z], 2) );
-                    $line2 .= $full_map_data[$x][$y][$z]."|";
-                    $line3 .= pack ( "SLL", split ( /:/, $full_map_data[$x][$y][$z] ) );
-                    $allocated = 1;
-                }
-                else {
-                    $line1 .= "  -1 ";
-                    $line2 .= "-1|";
-                    $line3 .= pack ( "SLL", 0, 0, 0 );
-                }
-            }
-            $line2 =~ s/\|$//;
-            $map1 .= $line1."\n";
-            $map2 .= $line2."\n";
-            $map3 .= $line3;
-        }
-        
-        if ($allocated) {
-            $map1 =~ s/\n$//;
-            $map2 =~ s/\n$//;
-            $page .= $map1."\n";
-            $page2 .= $map2."\n";
-            $page3 .= $map3."\n";
-            $real_z++;
-        }
-        say( " ". $z+1 ." / $zcount" );
-    }
-        
-    $page =~ s/\n$//;
-    $page2 =~ s/\n$//;
-    $page3 =~ s/\n$//;
-    
-    $page3 = $page3_head. pack ( "C", $real_z ) .$page3;
-    
-    open my $DAT, ">", "lite\\lite_$map_name.txt" or croak( "horribly: $!" );
-    print $DAT $page;
-    close $DAT;
-    
-    my $gz = gzopen("save\\full_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
-    $gz->gzwrite($page2)  or croak( "horribly: ".$gzerrno );
-    $gz->gzclose ;
-    
-    $gz = gzopen("bin_$map_name.txt.gz", "wb9") or croak( "horribly: ".$gzerrno );
-    $gz->gzwrite($page3)  or croak( "horribly: ".$gzerrno );
-    $gz->gzclose ;
-}
-
-
-################################################################################
-
 
 sub ask { print "$_[0]"; }
-
-
-__END__
-
-
-# some notes:
-################################################################################
-
-#print "\nContent of $df_offset -> $df_offset + 0x80\n";           # do a hex dump starting at offset with given length
-#print $proc->hexdump( $df_offset, 0x80 );
-#
-#$proc->get_buf( $df_offset, 10, my $string_buffer );                         # read and output various values
-#printf ( "\n0x%X [string of length 10]   : %s\n", $df_offset, $string_buffer );
-#printf ( "0x%X [unsigned int8  in hex] : %x\n", $df_offset, $proc->get_u8($df_offset) );
-#printf ( "0x%X [unsigned int16 in hex] : %x\n", $df_offset, $proc->get_u16($df_offset) );
-#printf ( "0x%X [unsigned int32 in hex] : %x\n", $df_offset, $proc->get_u32($df_offset) );
-
-# Sample Output:
-#
-# Content of 8995724 -> 8995724 + 0x80
-# 00894380 :                                     44 77 61 72 :             Dwar
-# 00894390 : 66 20 46 6F 72 74 72 65 73 73 00 00 45 72 72 6F : f Fortress..Erro
-# 008943A0 : 72 00 00 00 45 72 72 6F 72 20 52 65 67 69 73 74 : r...Error Regist
-# 008943B0 : 65 72 69 6E 67 20 57 69 6E 64 6F 77 20 43 6C 61 : ering Window Cla
-# 008943C0 : 73 73 21 00 45 72 72 6F 72 20 43 72 65 61 74 69 : ss!.Error Creati
-# 008943D0 : 6E 67 20 4F 70 65 6E 47 4C 20 57 69 6E 64 6F 77 : ng OpenGL Window
-# 008943E0 : 00 00 00 00 72 62 00 00 4D 6F 64 65 20 53 77 69 : ....rb..Mode Swi
-# 008943F0 : 74 63 68 20 46 61 69 6C 65 64 2E 0A 52 75 6E 6E : tch Failed..Runn
-# 00894400 : 69 6E 67 20 49 6E 20 57 69 6E 64 6F             : ing In Windo
-#
-# 0x89438C [string of length 10]   : Dwarf Fort
-# 0x89438C [unsigned int8  in hex] : 44
-# 0x89438C [unsigned int16 in hex] : 7744
-# 0x89438C [unsigned int32 in hex] : 72617744
